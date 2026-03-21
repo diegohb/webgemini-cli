@@ -19,7 +19,7 @@ Build the complete foundation for webgemini-cli - a Python CLI tool that bridges
   - Create `ensure_config_dir()` function to create directory if missing
   - Support `WEBGEMINI_CONFIG_DIR` environment variable override
 
-- [ ] Create auth manager `src/webgemini_cli/auth_manager.py`:
+- [x] Create auth manager `src/webgemini_cli/auth_manager.py`:
   - Import Playwright async API
   - Implement `login()` async function that:
     - Launches Chromium browser with `headless=False`
