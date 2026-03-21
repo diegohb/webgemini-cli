@@ -1,0 +1,12 @@
+{
+  "permission": {
+    "skill": {
+      "intellisearch": "allow"
+    }
+  },
+  "mcp": {
+  },
+  "plugin": [
+    "opencode-intellisearch"
+  ]
+}
