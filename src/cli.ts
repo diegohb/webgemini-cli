@@ -17,8 +17,9 @@ import {
   DockerContainerError,
 } from "./errors.js";
 import { checkCookieFreshness } from "./auth.js";
-import { getStorageStatePath, CONFIG_DIR_DEFAULT, getLightPandaHost, getLightPandaDocker, getBrowserType, getRemoteHost, type BrowserType } from "./config.js";
+import { getStorageStatePath, CONFIG_DIR_DEFAULT, getLightPandaHost, getLightPandaDocker, getBrowserType, getRemoteHost, getBrowserFallback, type BrowserType } from "./config.js";
 import { getConfigPath, getConfigDir, loadConfig, saveConfig, getConfigValue, setConfigValue, mergeConfigWithEnv, type ResolvedConfig, type Config } from "./config-file.js";
+import { setBrowserVerbose, setDebugBrowser } from "./browser.js";
 import { existsSync } from "fs";
 import { join } from "path";
 
@@ -48,8 +49,12 @@ program
   .version("0.2.0")
   .option("-v, --verbose", "Enable verbose output")
   .option("-b, --browser <type>", "Browser type (chromium|lightpanda|remote)")
+  .option("--debug-browser", "Enable detailed browser debugging")
   .hook("preAction", (thisCommand) => {
     verbose = thisCommand.opts().verbose === true;
+    const debugBrowser = thisCommand.opts().debugBrowser === true;
+    setBrowserVerbose(verbose);
+    setDebugBrowser(debugBrowser);
   });
 
 program
@@ -84,9 +89,22 @@ program
         }
       } else if (browserType === "lightpanda") {
         if (options.lightpandaDocker || getLightPandaDocker()) {
-          const { ensureLightPandaRunning } = await import("./docker.js");
-          remoteHost = await ensureLightPandaRunning();
-          console.log(`\x1b[90m  Auto-provisioning Docker LightPanda...\x1b[0m`);
+          const fallbackEnabled = getBrowserFallback();
+          try {
+            const { ensureLightPandaRunning } = await import("./docker.js");
+            remoteHost = await ensureLightPandaRunning();
+            console.log(`\x1b[90m  Auto-provisioning Docker LightPanda...\x1b[0m`);
+          } catch (dockerError) {
+            if (fallbackEnabled) {
+              console.log(`\x1b[33m  LightPanda Docker failed: ${dockerError instanceof Error ? dockerError.message : String(dockerError)}\x1b[0m`);
+              console.log(`\x1b[90m  Falling back to Chromium...\x1b[0m`);
+              logVerbose("LightPanda Docker failed, using Chromium as fallback browser");
+              remoteHost = undefined;
+            } else {
+              console.error(`\x1b[31m✗ LightPanda Docker failed:\x1b[0m ${dockerError instanceof Error ? dockerError.message : String(dockerError)}`);
+              throw dockerError;
+            }
+          }
         } else {
           remoteHost = getLightPandaHost();
         }
@@ -516,6 +534,8 @@ program
 function handleAuthError(error: unknown): void {
   if (error instanceof LightPandaNotFoundError) {
     console.error(`\x1b[31m✗ LightPanda not found:\x1b[0m ${error.message}`);
+    console.error(`\x1b[90m  Try using Chromium instead: --browser chromium\x1b[0m`);
+    console.error(`\x1b[90m  Or set BROWSER_FALLBACK=false to disable automatic fallback.\x1b[0m`);
     process.exit(1);
   }
   if (error instanceof ChromiumNotFoundError) {
@@ -534,15 +554,19 @@ function handleAuthError(error: unknown): void {
   if (error instanceof BrowserConnectionError) {
     console.error(`\x1b[31m✗ Connection failed:\x1b[0m ${error.message}`);
     console.error(`\x1b[90m  Use --browser remote --remote-host <ws://host:port> to connect to a remote browser.\x1b[0m`);
+    console.error(`\x1b[90m  Or try using Chromium instead: --browser chromium\x1b[0m`);
     process.exit(1);
   }
   if (error instanceof DockerNotAvailableError) {
     console.error(`\x1b[31m✗ Docker not available:\x1b[0m ${error.message}`);
     console.error(`\x1b[90m  Install Docker from https://docs.docker.com/get-docker/\x1b[0m`);
+    console.error(`\x1b[90m  Or try using Chromium instead: --browser chromium\x1b[0m`);
     process.exit(1);
   }
   if (error instanceof DockerContainerError) {
     console.error(`\x1b[31m✗ Docker container error:\x1b[0m ${error.message}`);
+    console.error(`\x1b[90m  Try using Chromium instead: --browser chromium\x1b[0m`);
+    console.error(`\x1b[90m  Or set BROWSER_FALLBACK=false to disable automatic fallback.\x1b[0m`);
     process.exit(1);
   }
   if (error instanceof AuthenticationError) {
@@ -556,10 +580,12 @@ function handleAuthError(error: unknown): void {
   if (error instanceof Error) {
     if (error.message.includes("ENOENT") || error.message.includes("not found")) {
       console.error(`\x1b[31m✗ LightPanda not found:\x1b[0m Please ensure LightPanda is installed. Run 'npm install -g @lightpanda/browser' or visit https://lightpanda.dev`);
+      console.error(`\x1b[90m  Or try using Chromium instead: --browser chromium\x1b[0m`);
       process.exit(1);
     }
     if (error.message.includes("ECONNREFUSED")) {
       console.error(`\x1b[31m✗ Connection failed:\x1b[0m Could not connect to LightPanda. Port may be in use.`);
+      console.error(`\x1b[90m  Try using Chromium instead: --browser chromium\x1b[0m`);
       process.exit(1);
     }
     console.error(`\x1b[31m✗ Error:\x1b[0m ${error.message}`);

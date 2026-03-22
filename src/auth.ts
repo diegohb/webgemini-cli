@@ -4,7 +4,7 @@ import { saveCookies, loadCookies as loadCookiesFromStore } from "./cookie-store
 import { AuthenticationError, CookieExpiredError, BrowserClosedError, BrowserConnectionError } from "./errors.js";
 import type { GeminiCookie } from "./types/gemini.js";
 import type { BrowserType } from "./config.js";
-import { getChromiumPath } from "./config.js";
+import { getChromiumPath, getLightPandaHost } from "./config.js";
 
 const GEMINI_URL = "https://gemini.google.com";
 const REQUIRED_COOKIES = ["__Secure-1PSID", "__Secure-1PSIDTS"];
@@ -16,7 +16,7 @@ async function attemptLogin(browserType: BrowserType, remoteHost?: string): Prom
   let browserProc: BrowserProcess | null = null;
   let cdpConn: CDPConnection | null = null;
 
-  if (browserType === "remote" && remoteHost) {
+  if (remoteHost) {
     const url = new URL(remoteHost);
     const host = url.hostname;
     const port = parseInt(url.port, 10) || 9222;
@@ -25,11 +25,19 @@ async function attemptLogin(browserType: BrowserType, remoteHost?: string): Prom
     browserProc = await startChromium({ executablePath: getChromiumPath() });
   } else if (browserType === "lightpanda") {
     browserProc = await startLightPanda();
-  } else if (remoteHost) {
-    const url = new URL(remoteHost);
-    const host = url.hostname;
-    const port = parseInt(url.port, 10) || 9222;
-    browserProc = await connectToRemoteBrowser(host, port);
+  } else if (browserType === "remote") {
+    const lightpandaHost = getLightPandaHost();
+    if (lightpandaHost) {
+      const url = new URL(lightpandaHost);
+      const host = url.hostname;
+      const port = parseInt(url.port, 10) || 9222;
+      browserProc = await connectToRemoteBrowser(host, port);
+    } else {
+      throw new BrowserConnectionError(
+        `BROWSER_TYPE is set to 'remote' but no remote host is configured. ` +
+        `Set LIGHTPANDA_HOST environment variable or provide --remote-host.`
+      );
+    }
   } else {
     browserProc = await startBrowser();
   }

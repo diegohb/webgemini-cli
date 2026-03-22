@@ -77,4 +77,12 @@ export function getRemoteHost(): string | undefined {
   return Bun.env.LIGHTPANDA_HOST ?? Bun.env.REMOTE_HOST;
 }
 
+export function getBrowserFallback(): boolean {
+  const fallback = Bun.env.BROWSER_FALLBACK;
+  if (fallback === "false") {
+    return false;
+  }
+  return true;
+}
+
 export type { ResolvedConfig } from "./config-file.js";

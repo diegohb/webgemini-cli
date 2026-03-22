@@ -3,6 +3,8 @@ import { DockerNotAvailableError, DockerContainerError } from "./errors.js";
 const LIGHTPANDA_IMAGE = "lightpanda/browser:nightly";
 const LIGHTPANDA_CONTAINER_NAME = "lightpanda";
 const LIGHTPANDA_PORT = 9222;
+const CONTAINER_STARTUP_TIMEOUT_MS = 10000;
+const CONTAINER_STARTUP_POLL_INTERVAL_MS = 500;
 
 async function runDockerCommand(args: string[]): Promise<{ success: boolean; stdout: string; stderr: string; exitCode: number }> {
   const proc = Bun.spawn({
@@ -72,15 +74,85 @@ export async function startLightPandaContainer(): Promise<void> {
   }
 }
 
+export async function removeLightPandaContainer(): Promise<void> {
+  const { exists } = await checkLightPandaContainer();
+  if (!exists) {
+    return;
+  }
+
+  await runDockerCommand(["rm", "-f", LIGHTPANDA_CONTAINER_NAME]);
+}
+
+export async function waitForContainerReady(host: string = "localhost", port: number = LIGHTPANDA_PORT, timeoutMs: number = CONTAINER_STARTUP_TIMEOUT_MS): Promise<boolean> {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const response = await fetch(`http://${host}:${port}`, { method: "GET" });
+      if (response.ok || response.status === 400) {
+        return true;
+      }
+    } catch {
+    }
+    await new Promise((resolve) => setTimeout(resolve, CONTAINER_STARTUP_POLL_INTERVAL_MS));
+  }
+  
+  return false;
+}
+
+export async function recreateLightPandaContainer(): Promise<void> {
+  await removeLightPandaContainer();
+  
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  
+  const pullResult = await runDockerCommand(["pull", LIGHTPANDA_IMAGE]);
+  if (!pullResult.success) {
+    throw new DockerContainerError(
+      `Failed to pull LightPanda image: ${pullResult.stderr || "Unknown error"}. ` +
+      `You may need to run 'docker login' or check your Docker configuration.`
+    );
+  }
+
+  const runResult = await runDockerCommand([
+    "run", "-d",
+    "--name", LIGHTPANDA_CONTAINER_NAME,
+    "-p", `${LIGHTPANDA_PORT}:${LIGHTPANDA_PORT}`,
+    LIGHTPANDA_IMAGE
+  ]);
+
+  if (!runResult.success) {
+    throw new DockerContainerError(
+      `Failed to start LightPanda container: ${runResult.stderr || "Unknown error"}.`
+    );
+  }
+
+  const isReady = await waitForContainerReady();
+  if (!isReady) {
+    throw new DockerContainerError(
+      `LightPanda container started but is not responding on port ${LIGHTPANDA_PORT}. ` +
+      `Try running 'docker logs ${LIGHTPANDA_CONTAINER_NAME}' for more details.`
+    );
+  }
+}
+
 export async function pullAndStartLightPanda(): Promise<void> {
   const { exists, running } = await checkLightPandaContainer();
   
   if (running) {
+    const isReady = await waitForContainerReady();
+    if (isReady) {
+      return;
+    }
+    await recreateLightPandaContainer();
     return;
   }
 
   if (exists) {
     await startLightPandaContainer();
+    const isReady = await waitForContainerReady();
+    if (!isReady) {
+      await recreateLightPandaContainer();
+    }
     return;
   }
 
@@ -102,6 +174,14 @@ export async function pullAndStartLightPanda(): Promise<void> {
   if (!runResult.success) {
     throw new DockerContainerError(
       `Failed to start LightPanda container: ${runResult.stderr || "Unknown error"}.`
+    );
+  }
+
+  const isReady = await waitForContainerReady();
+  if (!isReady) {
+    throw new DockerContainerError(
+      `LightPanda container started but is not responding on port ${LIGHTPANDA_PORT}. ` +
+      `Try running 'docker logs ${LIGHTPANDA_CONTAINER_NAME}' for more details.`
     );
   }
 }

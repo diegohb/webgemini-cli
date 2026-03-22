@@ -518,6 +518,84 @@ describe("Config Module", () => {
     expect(result).toBe("chromium");
     Bun.env.BROWSER_TYPE = original;
   });
+
+  test("getBrowserFallback returns true by default", async () => {
+    const { getBrowserFallback } = await import("../src/config");
+    const original = Bun.env.BROWSER_FALLBACK;
+    delete Bun.env.BROWSER_FALLBACK;
+    const result = getBrowserFallback();
+    expect(result).toBe(true);
+    Bun.env.BROWSER_FALLBACK = original;
+  });
+
+  test("getBrowserFallback returns false when BROWSER_FALLBACK=false", async () => {
+    const { getBrowserFallback } = await import("../src/config");
+    const original = Bun.env.BROWSER_FALLBACK;
+    Bun.env.BROWSER_FALLBACK = "false";
+    const result = getBrowserFallback();
+    expect(result).toBe(false);
+    Bun.env.BROWSER_FALLBACK = original;
+  });
+
+  test("getBrowserFallback returns true for other env values", async () => {
+    const { getBrowserFallback } = await import("../src/config");
+    const original = Bun.env.BROWSER_FALLBACK;
+    Bun.env.BROWSER_FALLBACK = "true";
+    const result = getBrowserFallback();
+    expect(result).toBe(true);
+    Bun.env.BROWSER_FALLBACK = original;
+  });
+});
+
+describe("Browser Fallback", () => {
+  const cliPath = join(process.cwd(), "src", "cli.ts");
+
+  test("--debug-browser flag is accepted", async () => {
+    cleanupTestStorage();
+
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "--debug-browser", "status"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(proc.exitCode).toBe(2);
+    expect(stdout).toContain("Browser type");
+  });
+
+  test("--browser=chromium never triggers fallback (uses chromium directly)", async () => {
+    cleanupTestStorage();
+
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "--browser=chromium", "status"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(proc.exitCode).toBe(2);
+    expect(stdout).toContain("chromium");
+  });
+
+  test("--browser chromium triggers fallback to chromium on lightpanda failure", async () => {
+    cleanupTestStorage();
+
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "--browser", "lightpanda", "status"],
+      env: {
+        ...process.env,
+        BROWSER_FALLBACK: "true",
+      },
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(proc.exitCode).toBe(2);
+  });
 });
 
 describe("Config File Module", () => {

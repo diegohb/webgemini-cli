@@ -3,7 +3,30 @@ import { chromium, type Browser as PlaywrightBrowser } from "playwright";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import type { Readable } from "node:stream";
 import { LightPandaNotFoundError, PortInUseError, BrowserConnectionError, ChromiumNotFoundError } from "./errors.js";
-import { getBrowserType, getChromiumPath, getLightPandaHost } from "./config.js";
+import { getBrowserType, getChromiumPath, getLightPandaHost, getBrowserFallback } from "./config.js";
+
+let verbose = false;
+let debugBrowser = false;
+
+export function setBrowserVerbose(v: boolean): void {
+  verbose = v;
+}
+
+export function setDebugBrowser(v: boolean): void {
+  debugBrowser = v;
+}
+
+function logBrowserDebug(...args: unknown[]): void {
+  if (debugBrowser) {
+    console.error("[BROWSER DEBUG]", ...args);
+  }
+}
+
+function logBrowserVerbose(...args: unknown[]): void {
+  if (verbose || debugBrowser) {
+    console.error("[BROWSER VERBOSE]", ...args);
+  }
+}
 
 export interface LightPandaOptions {
   host: string;
@@ -55,6 +78,7 @@ export function isChromiumNotFoundError(error: unknown): boolean {
 }
 
 export async function connectToRemoteBrowser(host: string, port: number): Promise<BrowserProcess> {
+  logBrowserDebug(`Connecting to remote browser at ${host}:${port}`);
   return {
     stdout: null,
     stderr: null,
@@ -69,6 +93,7 @@ let playwrightBrowser: PlaywrightBrowser | null = null;
 export async function startChromium(
   options: ChromiumOptions = {}
 ): Promise<BrowserProcess> {
+  logBrowserDebug(`Launching Chromium with executablePath: ${options.executablePath || "default"}`);
   try {
     const browser = await chromium.launch({
       headless: false,
@@ -79,6 +104,7 @@ export async function startChromium(
     playwrightBrowser = browser;
 
     const proc = browser.process();
+    logBrowserDebug(`Chromium launched, PID: ${proc?.pid}, port: 9222`);
 
     return {
       stdout: null,
@@ -88,6 +114,7 @@ export async function startChromium(
       remote: false,
     };
   } catch (error) {
+    logBrowserDebug(`Chromium launch failed: ${error instanceof Error ? error.message : String(error)}`);
     if (isChromiumNotFoundError(error)) {
       throw new ChromiumNotFoundError(
         `Chromium browser not found. Please ensure Chromium is installed. ` +
@@ -114,11 +141,13 @@ export async function startLightPanda(
 
   for (let port = opts.port; port <= PORT_RANGE_END; port++) {
     try {
+      logBrowserDebug(`Attempting to start LightPanda on ${opts.host}:${port}`);
       const proc = await lightpanda.serve({
         host: opts.host,
         port,
       });
 
+      logBrowserDebug(`LightPanda started on port ${port}`);
       return {
         stdout: proc.stdout,
         stderr: proc.stderr,
@@ -128,6 +157,7 @@ export async function startLightPanda(
       };
     } catch (error) {
       lastError = error;
+      logBrowserDebug(`LightPanda failed on port ${port}: ${error instanceof Error ? error.message : String(error)}`);
       
       if (isLightPandaNotFoundError(error)) {
         throw new LightPandaNotFoundError(
@@ -157,11 +187,33 @@ export async function startBrowser(): Promise<BrowserProcess> {
   const browserType = getBrowserType();
 
   if (browserType === "chromium") {
+    logBrowserVerbose("Starting Chromium browser...");
     return startChromium({ executablePath: getChromiumPath() });
   }
 
   if (browserType === "lightpanda") {
-    return startLightPanda();
+    logBrowserVerbose("Starting LightPanda browser...");
+    try {
+      return await startLightPanda();
+    } catch (lightpandaError) {
+      const fallbackEnabled = getBrowserFallback();
+      if (!fallbackEnabled) {
+        logBrowserVerbose("LightPanda failed and BROWSER_FALLBACK=false, propagating error");
+        throw lightpandaError;
+      }
+      
+      logBrowserVerbose(`LightPanda failed: ${lightpandaError instanceof Error ? lightpandaError.message : String(lightpandaError)}`);
+      logBrowserVerbose("Attempting Chromium fallback...");
+      
+      try {
+        const chromiumResult = await startChromium({ executablePath: getChromiumPath() });
+        logBrowserVerbose("Chromium fallback successful");
+        return chromiumResult;
+      } catch (chromiumError) {
+        logBrowserVerbose(`Chromium fallback also failed: ${chromiumError instanceof Error ? chromiumError.message : String(chromiumError)}`);
+        throw lightpandaError;
+      }
+    }
   }
 
   const remoteHost = getLightPandaHost();
