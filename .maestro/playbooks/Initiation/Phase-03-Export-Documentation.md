@@ -28,7 +28,7 @@ Implement polished Markdown export functionality and comprehensive documentation
   - Add `--since` option to export only recent conversations
   - Display progress bar during batch export
 
-- [ ] Create comprehensive documentation:
+- [x] Create comprehensive documentation:
   - Expand README.md with:
     - Prerequisites section (Python 3.11+, Chromium browser)
     - Step-by-step authentication guide
