@@ -39,7 +39,7 @@ Build the complete foundation for webgemini-cli - a Python CLI tool that bridges
     - `continue_chat(self, conversation_id: str, message: str) -> str` - send message, return response text
     - `_extract_text(self, response) -> str` - helper to extract `.text` from `GeminiModelOutput`
 
-- [ ] Create CLI application `src/webgemini_cli/cli.py`:
+- [x] Create CLI application `src/webgemini_cli/cli.py`:
   - Use Click for CLI framework with `@click.group()`
   - Implement `auth` command: runs Playwright login flow, prints success message
   - Implement `list` command: loads cookies, calls `list_chats()`, displays table with Rich
@@ -47,15 +47,15 @@ Build the complete foundation for webgemini-cli - a Python CLI tool that bridges
   - Implement `continue <conversation_id> <message>` command: sends message, prints response
   - Implement `export <conversation_id>` command: fetches chat, saves to Markdown file
 
-- [ ] Create entry point `src/webgemini_cli/__main__.py`:
+- [x] Create entry point `src/webgemini_cli/__main__.py`:
   - Import cli group from cli.py
   - Call `cli()` when run as module
 
-- [ ] Configure pyproject.toml entry points:
+- [x] Configure pyproject.toml entry points:
   - Add `[project.scripts]` section with `webgemini = "webgemini_cli.cli:cli"`
   - Ensure package is installable with `pip install -e .`
 
-- [ ] Create initial test script `scripts/demo.py`:
+- [x] Create initial test script `scripts/demo.py`:
   - Script that demonstrates the deliverable: list 5 most recent chats
   - Append "Hello from the API" to the most recent chat
   - Print confirmation of actions taken
@@ -66,7 +66,7 @@ Build the complete foundation for webgemini-cli - a Python CLI tool that bridges
   - Test `webgemini --help` shows all commands
   - Create `requirements.txt` for non-editable installs
 
-- [ ] Create basic README.md:
+- [x] Create basic README.md:
   - Project description and purpose
   - Installation instructions
   - Usage examples for all 5 commands
