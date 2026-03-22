@@ -30,7 +30,7 @@ Build the complete foundation for webgemini-cli - a Python CLI tool that bridges
     - Closes browser immediately after cookie capture
   - Implement `load_cookies()` function that reads `storage_state.json` and returns dict
 
-- [ ] Create Gemini client wrapper `src/webgemini_cli/gemini_client.py`:
+- [x] Create Gemini client wrapper `src/webgemini_cli/gemini_client.py`:
   - Import `Gemini` from `python_gemini_api`
   - Implement `GeminiClient` class with:
     - `__init__(self, cookies: dict)` - initialize Gemini client with cookies
