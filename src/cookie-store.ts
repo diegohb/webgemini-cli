@@ -1,14 +1,15 @@
 import { appendFileSync, readFileSync, existsSync } from "fs";
-import { getStorageStatePath } from "./config.js";
+import { getStorageStatePath, ensureConfigDir } from "./config.js";
 import { AuthenticationError, CookieExpiredError } from "./errors.js";
 import type { GeminiCookie } from "./types/index.js";
 
 export async function saveCookies(cookies: GeminiCookie[]): Promise<void> {
+  ensureConfigDir();
   const storageState = {
     cookies,
   };
   const path = getStorageStatePath();
-  Bun.write(path, JSON.stringify(storageState, null, 2));
+  await Bun.write(path, JSON.stringify(storageState, null, 2));
 }
 
 export async function loadCookies(): Promise<GeminiCookie[]> {
