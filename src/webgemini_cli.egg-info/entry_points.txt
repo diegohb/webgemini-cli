@@ -1,2 +1,0 @@
-[console_scripts]
-webgemini = webgemini_cli.cli:cli
