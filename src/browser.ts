@@ -11,8 +11,9 @@ export interface LightPandaOptions {
 export interface BrowserProcess {
   stdout: Readable | null;
   stderr: Readable | null;
-  proc: ChildProcessWithoutNullStreams;
+  proc: ChildProcessWithoutNullStreams | null;
   port: number;
+  remote: boolean;
 }
 
 const DEFAULT_OPTIONS: LightPandaOptions = {
@@ -30,6 +31,16 @@ function isLightPandaNotFoundError(error: unknown): boolean {
     return LIGHTPANDA_NOT_FOUND_CODES.includes(code || "");
   }
   return false;
+}
+
+export async function connectToRemoteBrowser(host: string, port: number): Promise<BrowserProcess> {
+  return {
+    stdout: null,
+    stderr: null,
+    proc: null,
+    port,
+    remote: true,
+  };
 }
 
 function isPortInUseError(error: unknown): boolean {
@@ -58,6 +69,7 @@ export async function startBrowser(
         stderr: proc.stderr,
         proc,
         port,
+        remote: false,
       };
     } catch (error) {
       lastError = error;
@@ -87,11 +99,16 @@ export async function startBrowser(
 }
 
 export function stopBrowser(browser: BrowserProcess): void {
+  if (browser.remote) {
+    return;
+  }
   if (browser.stdout) {
     browser.stdout.destroy();
   }
   if (browser.stderr) {
     browser.stderr.destroy();
   }
-  browser.proc.kill();
+  if (browser.proc) {
+    browser.proc.kill();
+  }
 }

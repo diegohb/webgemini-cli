@@ -12,9 +12,11 @@ import {
   GeminiAPIError,
   ConversationNotFoundError,
   WebGeminiError,
+  DockerNotAvailableError,
+  DockerContainerError,
 } from "./errors.js";
 import { checkCookieFreshness } from "./auth.js";
-import { getStorageStatePath, CONFIG_DIR_DEFAULT } from "./config.js";
+import { getStorageStatePath, CONFIG_DIR_DEFAULT, getLightPandaHost, getLightPandaDocker } from "./config.js";
 import { existsSync } from "fs";
 import { join } from "path";
 
@@ -39,11 +41,25 @@ program
 program
   .command("auth")
   .description("Authenticate with Gemini")
-  .action(async () => {
+  .option("--lightpanda-host <ws://host:port>", "Connect to remote LightPanda browser")
+  .action(async (options: { lightpandaHost?: string }) => {
     try {
       logVerbose("Starting browser authentication...");
       console.log("Starting browser authentication...");
-      const cookies = await login();
+      
+      let remoteHost: string | undefined;
+      
+      if (options.lightpandaHost) {
+        remoteHost = options.lightpandaHost;
+      } else if (getLightPandaDocker()) {
+        const { ensureLightPandaRunning } = await import("./docker.js");
+        remoteHost = await ensureLightPandaRunning();
+        console.log(`\x1b[90m  Auto-provisioning Docker LightPanda...\x1b[0m`);
+      } else {
+        remoteHost = getLightPandaHost();
+      }
+      
+      const cookies = await login(remoteHost);
       logVerbose(`Authentication successful, saved ${cookies.length} cookies`);
       console.log(`\x1b[32m✓ Authentication successful!\x1b[0m`);
       console.log(`\x1b[90m  Saved ${cookies.length} cookies.\x1b[0m`);
@@ -382,6 +398,17 @@ function handleAuthError(error: unknown): void {
   }
   if (error instanceof BrowserConnectionError) {
     console.error(`\x1b[31m✗ Connection failed:\x1b[0m ${error.message}`);
+    console.error(`\x1b[90m  Tip: Use Docker LightPanda by setting LIGHTPANDA_DOCKER=true or --lightpanda-host flag.\x1b[0m`);
+    console.error(`\x1b[90m  Or run: docker run -d --name lightpanda -p 9222:9222 lightpanda/browser:nightly\x1b[0m`);
+    process.exit(1);
+  }
+  if (error instanceof DockerNotAvailableError) {
+    console.error(`\x1b[31m✗ Docker not available:\x1b[0m ${error.message}`);
+    console.error(`\x1b[90m  Install Docker from https://docs.docker.com/get-docker/\x1b[0m`);
+    process.exit(1);
+  }
+  if (error instanceof DockerContainerError) {
+    console.error(`\x1b[31m✗ Docker container error:\x1b[0m ${error.message}`);
     process.exit(1);
   }
   if (error instanceof AuthenticationError) {

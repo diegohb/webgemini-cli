@@ -1,4 +1,4 @@
-import { startBrowser, stopBrowser, type BrowserProcess } from "./browser.js";
+import { startBrowser, stopBrowser, connectToRemoteBrowser, type BrowserProcess } from "./browser.js";
 import { connectToLightPanda, closeCDPConnection, type CDPConnection } from "./cdp-client.js";
 import { saveCookies, loadCookies as loadCookiesFromStore } from "./cookie-store.js";
 import { AuthenticationError, CookieExpiredError, BrowserClosedError, BrowserConnectionError } from "./errors.js";
@@ -10,11 +10,18 @@ const POLL_INTERVAL_MS = 1000;
 const COOKIE_FRESHNESS_DAYS = 7;
 const MAX_AUTH_RETRIES = 3;
 
-async function attemptLogin(): Promise<GeminiCookie[]> {
+async function attemptLogin(remoteHost?: string): Promise<GeminiCookie[]> {
   let browserProc: BrowserProcess | null = null;
   let cdpConn: CDPConnection | null = null;
 
-  browserProc = await startBrowser();
+  if (remoteHost) {
+    const url = new URL(remoteHost);
+    const host = url.hostname;
+    const port = parseInt(url.port, 10) || 9222;
+    browserProc = await connectToRemoteBrowser(host, port);
+  } else {
+    browserProc = await startBrowser();
+  }
   
   try {
     const cdpUrl = `http://127.0.0.1:${browserProc.port}`;
@@ -73,12 +80,12 @@ async function pollForCookies(cdpConn: CDPConnection, port: number): Promise<Gem
   );
 }
 
-export async function login(): Promise<GeminiCookie[]> {
+export async function login(remoteHost?: string): Promise<GeminiCookie[]> {
   let lastError: unknown = null;
 
   for (let attempt = 1; attempt <= MAX_AUTH_RETRIES; attempt++) {
     try {
-      return await attemptLogin();
+      return await attemptLogin(remoteHost);
     } catch (error) {
       lastError = error;
 

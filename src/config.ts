@@ -27,3 +27,19 @@ export function ensureConfigDir(): void {
     mkdirSync(configDir, { recursive: true });
   }
 }
+
+/**
+ * Gets the LIGHTPANDA_HOST environment variable value.
+ * @returns The remote LightPanda WebSocket URL or undefined if not set.
+ */
+export function getLightPandaHost(): string | undefined {
+  return Bun.env.LIGHTPANDA_HOST;
+}
+
+/**
+ * Gets the LIGHTPANDA_DOCKER environment variable value.
+ * @returns True if Docker auto-provisioning is enabled.
+ */
+export function getLightPandaDocker(): boolean {
+  return Bun.env.LIGHTPANDA_DOCKER === "true";
+}

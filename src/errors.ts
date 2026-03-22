@@ -77,6 +77,20 @@ export class PortInUseError extends WebGeminiError {
     port: number;
 }
 
+export class DockerNotAvailableError extends WebGeminiError {
+    constructor(message: string = "Docker is not available. Please install Docker to use this feature.") {
+        super(message);
+        this.name = "DockerNotAvailableError";
+    }
+}
+
+export class DockerContainerError extends WebGeminiError {
+    constructor(message: string = "Docker container error occurred.") {
+        super(message);
+        this.name = "DockerContainerError";
+    }
+}
+
 const ERROR_TYPE_MAP: Record<string, new (message: string) => WebGeminiError> = {
     AuthenticationError,
     CookieExpiredError,
@@ -88,6 +102,8 @@ const ERROR_TYPE_MAP: Record<string, new (message: string) => WebGeminiError> = 
     LightPandaNotFoundError,
     BrowserConnectionError,
     BrowserClosedError,
+    DockerNotAvailableError,
+    DockerContainerError,
 };
 
 export function getErrorClass(errorType: string): new (message: string) => WebGeminiError {

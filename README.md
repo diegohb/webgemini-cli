@@ -19,6 +19,23 @@ npm install -g @lightpanda/browser
 
 Or visit https://lightpanda.dev for alternative installation methods.
 
+### Docker Installation (Alternative)
+
+If you don't want to install LightPanda locally, you can use Docker to run a headless LightPanda browser:
+
+```bash
+# Install and run LightPanda
+docker run -d --name lightpanda -p 9222:9222 lightpanda/browser:nightly
+
+# Start existing container
+docker start lightpanda
+
+# Stop container
+docker stop lightpanda
+```
+
+For automatic Docker provisioning, set `LIGHTPANDA_DOCKER=true` when running the auth command.
+
 ## Installation
 
 ```bash
@@ -156,6 +173,21 @@ Or with the built binary:
 
 This will open a browser window for you to log in with your Google account. Cookies will be saved for future use.
 
+#### Remote LightPanda
+
+Connect to a remote LightPanda browser using Docker or a custom host:
+
+```bash
+# Using Docker auto-provisioning
+LIGHTPANDA_DOCKER=true webgemini auth
+
+# Using a specific remote host
+webgemini auth --lightpanda-host ws://localhost:9222
+
+# Using environment variable
+LIGHTPANDA_HOST=ws://localhost:9222 webgemini auth
+```
+
 ### Check Status
 
 Verify your authentication status:
@@ -256,12 +288,40 @@ The storage file (`storage_state.json`) contains your authentication cookies. It
 | `WEBGEMINI_CONFIG_DIR` | Configuration directory | `~/.config/webgemini-cli/` |
 | `WEBGEMINI_VERBOSE` | Enable verbose logging | `false` |
 | `PYTHON_WRAPPER_PATH` | Path to Python wrapper script | `<project>/python/wrapper.py` |
+| `LIGHTPANDA_HOST` | Remote LightPanda CDP URL | none |
+| `LIGHTPANDA_DOCKER` | Auto-provision Docker container | `false` |
 
 ## Python Wrapper
 
 The CLI delegates Gemini API operations to a Python subprocess (`python/wrapper.py`) using JSON over stdin/stdout.
 
 ## Troubleshooting
+
+### Docker LightPanda Not Running
+
+If you're using Docker LightPanda and authentication fails:
+
+1. Check if Docker is running:
+   ```bash
+   docker ps -a | grep lightpanda
+   ```
+
+2. Start the container:
+   ```bash
+   docker start lightpanda
+   ```
+
+3. Or recreate the container:
+   ```bash
+   docker stop lightpanda
+   docker rm lightpanda
+   docker run -d --name lightpanda -p 9222:9222 lightpanda/browser:nightly
+   ```
+
+4. Use automatic provisioning:
+   ```bash
+   LIGHTPANDA_DOCKER=true webgemini auth
+   ```
 
 ### LightPanda Not Found
 
