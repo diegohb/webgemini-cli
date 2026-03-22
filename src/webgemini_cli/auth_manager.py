@@ -1,8 +1,36 @@
 import json
+from datetime import datetime, timedelta
 
 from playwright.async_api import async_playwright
 
 from webgemini_cli.config import ensure_config_dir, get_storage_state_path
+from webgemini_cli.exceptions import AuthenticationError, CookieExpiredError
+
+REQUIRED_COOKIES = {"__Secure-1PSID", "__Secure-1PSIDTS"}
+COOKIE_EXPIRY_THRESHOLD_DAYS = 7
+
+
+def validate_cookies(cookies: dict) -> bool:
+    if not cookies or "cookies" not in cookies:
+        return False
+    cookie_list = cookies.get("cookies", [])
+    cookie_names = {c.get("name") for c in cookie_list if isinstance(c, dict)}
+    return REQUIRED_COOKIES.issubset(cookie_names)
+
+
+def check_cookie_freshness(cookies: dict) -> bool:
+    if not cookies or "cookies" not in cookies:
+        return False
+    cookie_list = cookies.get("cookies", [])
+    for cookie in cookie_list:
+        if isinstance(cookie, dict) and cookie.get("name") == "__Secure-1PSIDTS":
+            expires = cookie.get("expires", -1)
+            if expires > 0:
+                expiry_date = datetime.fromtimestamp(expires)
+                threshold = datetime.now() + timedelta(days=COOKIE_EXPIRY_THRESHOLD_DAYS)
+                if expiry_date < threshold:
+                    return False
+    return True
 
 
 async def login() -> list[dict]:
@@ -33,6 +61,19 @@ async def login() -> list[dict]:
 def load_cookies() -> dict:
     storage_path = get_storage_state_path()
     if not storage_path.exists():
-        return {}
+        raise AuthenticationError(
+            f"Authentication required. Run 'webgemini auth' to authenticate. "
+            f"Storage file not found at {storage_path}"
+        )
     with open(storage_path) as f:
-        return json.load(f)
+        cookies = json.load(f)
+    if not check_cookie_freshness(cookies):
+        raise CookieExpiredError(
+            "Session appears to be expired. Please run 'webgemini auth' to re-authenticate."
+        )
+    return cookies
+
+
+async def refresh_cookies() -> dict:
+    cookies = await login()
+    return {c["name"]: c["value"] for c in cookies}

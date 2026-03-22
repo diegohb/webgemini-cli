@@ -62,6 +62,32 @@ A demo script is available at `scripts/demo.py` that demonstrates the library's 
 - Config directory: `~/.config/webgemini-cli/` (configurable via `WEBGEMINI_CONFIG_DIR` environment variable)
 - Storage file: `storage_state.json` (contains authentication cookies)
 
+## Troubleshooting
+
+### Authentication Issues
+
+If browser automation fails or is unavailable, you can manually extract cookies from your browser:
+
+1. Install the "EditThisCookie" extension or similar in your browser
+2. Go to https://gemini.google.com and log in
+3. Export the cookies in JSON format
+4. Save them to `~/.config/webgemini-cli/storage_state.json` with the following format:
+   ```json
+   {
+     "cookies": [
+       {"name": "__Secure-1PSID", "value": "your_value_here", ...},
+       {"name": "__Secure-1PSIDTS", "value": "your_value_here", ...}
+     ]
+   }
+   ```
+
+### Verbose Logging
+
+Use the `-v` or `--verbose` flag to enable detailed logging for debugging:
+```bash
+webgemini -v list
+```
+
 ## Future Enhancements
 
 - Interactive CLI mode with menu-driven navigation
