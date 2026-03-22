@@ -1,11 +1,16 @@
 import { lightpanda } from "@lightpanda/browser";
+import { chromium, type Browser as PlaywrightBrowser } from "playwright";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import type { Readable } from "node:stream";
-import { LightPandaNotFoundError, PortInUseError, BrowserConnectionError } from "./errors.js";
+import { LightPandaNotFoundError, PortInUseError, BrowserConnectionError, ChromiumNotFoundError } from "./errors.js";
 
 export interface LightPandaOptions {
   host: string;
   port: number;
+}
+
+export interface ChromiumOptions {
+  executablePath?: string;
 }
 
 export interface BrowserProcess {
@@ -24,11 +29,26 @@ const DEFAULT_OPTIONS: LightPandaOptions = {
 const PORT_RANGE_START = 9222;
 const PORT_RANGE_END = 9332;
 const LIGHTPANDA_NOT_FOUND_CODES = ["ENOENT", "ENOFS", "EACCES"];
+const CHROMIUM_NOT_FOUND_CODES = ["ENOENT", "ENOFS", "EACCES"];
 
 function isLightPandaNotFoundError(error: unknown): boolean {
   if (error instanceof Error) {
     const code = (error as NodeJS.ErrnoException).code;
     return LIGHTPANDA_NOT_FOUND_CODES.includes(code || "");
+  }
+  return false;
+}
+
+export function isChromiumNotFoundError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (CHROMIUM_NOT_FOUND_CODES.includes(code || "")) {
+      return true;
+    }
+    return error.message.includes("executable doesn't exist") ||
+           error.message.includes("no chrome/chromium installed") ||
+           error.message.includes("Chrome not found") ||
+           error.message.includes("Chromium not found");
   }
   return false;
 }
@@ -41,6 +61,40 @@ export async function connectToRemoteBrowser(host: string, port: number): Promis
     port,
     remote: true,
   };
+}
+
+let playwrightBrowser: PlaywrightBrowser | null = null;
+
+export async function startChromium(
+  options: ChromiumOptions = {}
+): Promise<BrowserProcess> {
+  try {
+    const browser = await chromium.launch({
+      headless: false,
+      executablePath: options.executablePath,
+      args: ["--remote-debugging-port=9222"],
+    });
+
+    playwrightBrowser = browser;
+
+    const proc = browser.process();
+
+    return {
+      stdout: null,
+      stderr: null,
+      proc: proc as ChildProcessWithoutNullStreams | null,
+      port: 9222,
+      remote: false,
+    };
+  } catch (error) {
+    if (isChromiumNotFoundError(error)) {
+      throw new ChromiumNotFoundError(
+        `Chromium browser not found. Please ensure Chromium is installed. ` +
+        `Set CHROMIUM_PATH environment variable to specify a custom location.`
+      );
+    }
+    throw error;
+  }
 }
 
 function isPortInUseError(error: unknown): boolean {
@@ -100,6 +154,11 @@ export async function startBrowser(
 
 export function stopBrowser(browser: BrowserProcess): void {
   if (browser.remote) {
+    return;
+  }
+  if (playwrightBrowser) {
+    playwrightBrowser.close();
+    playwrightBrowser = null;
     return;
   }
   if (browser.stdout) {
