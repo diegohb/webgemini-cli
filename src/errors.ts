@@ -54,6 +54,13 @@ export class LightPandaNotFoundError extends WebGeminiError {
     }
 }
 
+export class ChromiumNotFoundError extends WebGeminiError {
+    constructor(message: string = "Chromium browser not found. Please ensure Chromium is installed.") {
+        super(message);
+        this.name = "ChromiumNotFoundError";
+    }
+}
+
 export class BrowserConnectionError extends WebGeminiError {
     constructor(message: string = "Could not connect to browser.") {
         super(message);
@@ -100,6 +107,7 @@ const ERROR_TYPE_MAP: Record<string, new (message: string) => WebGeminiError> = 
     SubprocessError,
     SubprocessTimeoutError,
     LightPandaNotFoundError,
+    ChromiumNotFoundError,
     BrowserConnectionError,
     BrowserClosedError,
     DockerNotAvailableError,

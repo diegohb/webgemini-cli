@@ -43,3 +43,25 @@ export function getLightPandaHost(): string | undefined {
 export function getLightPandaDocker(): boolean {
   return Bun.env.LIGHTPANDA_DOCKER === "true";
 }
+
+export type BrowserType = "chromium" | "lightpanda" | "remote";
+
+/**
+ * Gets the BROWSER_TYPE environment variable value.
+ * @returns The browser type (chromium, lightpanda, or remote). Defaults to chromium.
+ */
+export function getBrowserType(): BrowserType {
+  const type = Bun.env.BROWSER_TYPE;
+  if (type === "lightpanda" || type === "remote") {
+    return type;
+  }
+  return "chromium";
+}
+
+/**
+ * Gets the CHROMIUM_PATH environment variable value.
+ * @returns The custom Chromium executable path or undefined if not set.
+ */
+export function getChromiumPath(): string | undefined {
+  return Bun.env.CHROMIUM_PATH;
+}
