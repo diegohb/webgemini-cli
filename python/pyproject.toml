@@ -3,16 +3,16 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "webgemini-cli"
-version = "0.1.0"
-description = "A Python CLI tool that bridges Playwright-based Google authentication with the python-gemini-api library"
+name = "webgemini-cli-python"
+version = "0.2.0"
+description = "Python wrapper for webgemini-cli providing Gemini API access via subprocess"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "webgemini-cli contributors"}
 ]
-keywords = ["gemini", "cli", "google", "playwright", "chatbot"]
+keywords = ["gemini", "cli", "google", "wrapper"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -24,9 +24,6 @@ classifiers = [
 
 dependencies = [
     "python-gemini-api",
-    "playwright",
-    "click",
-    "rich",
 ]
 
 [project.optional-dependencies]
@@ -34,12 +31,6 @@ dev = [
     "pytest",
     "ruff",
 ]
-
-[project.scripts]
-webgemini = "webgemini_cli.cli:cli"
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.ruff]
 line-length = 100

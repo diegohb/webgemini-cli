@@ -1,24 +1,56 @@
 # webgemini-cli
 
-A Python CLI tool that bridges Playwright-based Google authentication with the python-gemini-api library.
+A TypeScript CLI tool that bridges LightPanda browser automation with Gemini web API.
 
 ## Prerequisites
 
-- **Python**: Version 3.11 or higher
-- **Chromium Browser**: Required by Playwright for authentication
+- **Bun**: Version 1.0 or higher ([Install](https://bun.sh))
+- **LightPanda Browser**: Required for authentication ([Install](https://lightpanda.dev))
+- **Python**: Version 3.11 or higher (for the Python wrapper)
 - **Google Account**: A Google account with access to Gemini (https://gemini.google.com)
 
-### Installation
+### Browser Installation
+
+LightPanda is required for authentication. Install it via npm:
 
 ```bash
-pip install -e .
-playwright install chromium
+npm install -g @lightpanda/browser
 ```
 
-> **Note**: If you encounter issues with Playwright, ensure you have the necessary system dependencies:
-> ```bash
-> playwright install-deps
-> ```
+Or visit https://lightpanda.dev for alternative installation methods.
+
+### Docker Installation (Alternative)
+
+If you don't want to install LightPanda locally, you can use Docker to run a headless LightPanda browser:
+
+```bash
+# Install and run LightPanda
+docker run -d --name lightpanda -p 9222:9222 lightpanda/browser:nightly
+
+# Start existing container
+docker start lightpanda
+
+# Stop container
+docker stop lightpanda
+```
+
+For automatic Docker provisioning, set `LIGHTPANDA_DOCKER=true` when running the auth command.
+
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/your-repo/webgemini-cli.git
+cd webgemini-cli
+
+# Install dependencies
+bun install
+
+# Build the CLI (optional, for faster startup)
+bun run build
+```
+
+The CLI can be run directly with `bun run src/cli.ts` or via the built binary at `dist/webgemini-cli`.
 
 ## Architecture
 
@@ -29,20 +61,19 @@ playwright install chromium
 │                                                                  │
 │  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐    │
 │  │     CLI      │────▶│   Gemini     │────▶│    Auth      │    │
-│  │   (click)    │     │   Client     │     │   Manager    │    │
+│  │  (TypeScript)│     │   Client     │     │   Manager    │    │
 │  └──────────────┘     └──────────────┘     └──────────────┘    │
 │         │                    │                    │            │
 │         │                    │                    ▼            │
 │         │                    │            ┌──────────────┐    │
-│         │                    │            │   Playwright │    │
-│         │                    │            │   (Browser)  │    │
+│         │                    │            │  LightPanda  │    │
+│         │                    │            │   Browser    │    │
 │         │                    │            └──────────────┘    │
 │         │                    │                    │            │
 │         ▼                    ▼                    ▼            │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐    │
-│  │   Rich UI    │     │    python    │     │   Cookie     │    │
-│  │  (tables,    │     │   -gemini    │     │    Store     │    │
-│  │   progress)  │     │     -api     │     │  (JSON file) │    │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
+│  │   Console     │     │   Python     │     │    Cookie    │   │
+│  │    Output     │     │  Subprocess  │     │    Store     │   │
 │  └──────────────┘     └──────────────┘     └──────────────┘    │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -52,11 +83,14 @@ playwright install chromium
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| **CLI** | `cli.py` | Command-line interface using Click framework |
-| **GeminiClient** | `gemini_client.py` | Interacts with Gemini API using cookies |
-| **AuthManager** | `auth_manager.py` | Handles Playwright browser automation for login |
-| **Exporter** | `exporter.py` | Formats conversations as Markdown/JSON |
-| **Config** | `config.py` | Manages configuration directories and paths |
+| **CLI** | `src/cli.ts` | Command-line interface using Commander.js |
+| **GeminiClient** | `src/gemini-client.ts` | Gemini API client |
+| **AuthManager** | `src/auth.ts` | LightPanda browser automation for login |
+| **CookieStore** | `src/cookie-store.ts` | Persistent cookie storage |
+
+### Architecture
+
+The CLI is written in TypeScript using Bun for fast startup and type safety. Gemini API calls are delegated to a Python subprocess wrapper via JSON over stdin/stdout.
 
 ## Authentication Flow
 
@@ -68,10 +102,10 @@ playwright install chromium
 │   1. User runs 'webgemini auth'                                   │
 │            │                                                      │
 │            ▼                                                      │
-│   2. Playwright launches Chromium browser (headless=False)       │
+│   2. LightPanda launches Chromium browser (headless=False)       │
 │            │                                                      │
 │            ▼                                                      │
-│   3. Navigate to https://gemini.google.com                        │
+│   3. Navigate to https://gemini.google.com                       │
 │            │                                                      │
 │            ▼                                                      │
 │   4. User manually logs in with Google credentials               │
@@ -82,17 +116,12 @@ playwright install chromium
 │       - __Secure-1PSIDTS                                          │
 │            │                                                      │
 │            ▼                                                      │
-│   6. Cookies captured and saved to storage_state.json             │
-│            │                                                      │
-│            ▼                                                      │
-│   7. GeminiClient uses cookies for API requests                   │
+│   6. Cookies captured and saved to storage_state.json            │
 │                                                                   │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Cookie Format
-
-The python-gemini-api library expects cookies in a specific JSON format:
 
 ```json
 {
@@ -132,17 +161,39 @@ Sessions typically expire when the `__Secure-1PSIDTS` cookie expires. The CLI ch
 Before using the CLI, you need to authenticate with your Google account:
 
 ```bash
-webgemini auth
+bun run src/cli.ts auth
+```
+
+Or with the built binary:
+
+```bash
+./dist/webgemini.exe auth  # Windows
+./dist/webgemini auth      # Unix/macOS
 ```
 
 This will open a browser window for you to log in with your Google account. Cookies will be saved for future use.
+
+#### Remote LightPanda
+
+Connect to a remote LightPanda browser using Docker or a custom host:
+
+```bash
+# Using Docker auto-provisioning
+LIGHTPANDA_DOCKER=true webgemini auth
+
+# Using a specific remote host
+webgemini auth --lightpanda-host ws://localhost:9222
+
+# Using environment variable
+LIGHTPANDA_HOST=ws://localhost:9222 webgemini auth
+```
 
 ### Check Status
 
 Verify your authentication status:
 
 ```bash
-webgemini status
+bun run src/cli.ts status
 ```
 
 ### List Chats
@@ -150,29 +201,29 @@ webgemini status
 Display all your Gemini chats in a table:
 
 ```bash
-webgemini list
+bun run src/cli.ts list
 ```
 
 Options:
-- `-n, --limit N`: Maximum number of chats to display (default: 10, max: 50)
+- `-n, --limit <number>`: Maximum number of chats to display (default: 10, max: 50)
 
 ### Fetch Chat History
 
 Fetch and display the message history of a specific conversation:
 
 ```bash
-webgemini fetch <conversation_id>
+bun run src/cli.ts fetch <conversation-id>
 ```
 
 Options:
-- `--format, -f`: Output format - `text` (default) or `json`
+- `-f, --format <format>`: Output format - `text` (default) or `json`
 
 ### Continue a Chat
 
 Send a message to an existing conversation:
 
 ```bash
-webgemini continue <conversation_id> <message>
+bun run src/cli.ts continue <conversation-id> <message>
 ```
 
 ### Export Chat
@@ -180,12 +231,12 @@ webgemini continue <conversation_id> <message>
 Export a conversation to a Markdown file:
 
 ```bash
-webgemini export <conversation_id>
+bun run src/cli.ts export <conversation-id>
 ```
 
 Options:
-- `-o, --output PATH`: Custom output file path
-- `-f, --format FORMAT`: Export format - `markdown` (default) or `json`
+- `-o, --output <path>`: Custom output file path
+- `-f, --format <format>`: Export format - `markdown` (default) or `json`
 - `--include-metadata`: Include full metadata in export
 
 Default filename pattern: `gemini-chat-{conversation_id}-{date}.md`
@@ -195,12 +246,12 @@ Default filename pattern: `gemini-chat-{conversation_id}-{date}.md`
 Export all conversations to a directory with an index file:
 
 ```bash
-webgemini export-all
+bun run src/cli.ts export-all
 ```
 
 Options:
-- `-o, --output-dir PATH`: Directory to export to (default: `./exports`)
-- `--since ISO_DATE`: Export only conversations newer than this date
+- `-o, --output-dir <directory>`: Directory to export to (default: `./exports`)
+- `--since <date>`: Export only conversations newer than this date
 - `--include-metadata`: Include full metadata in each export
 
 This creates:
@@ -212,7 +263,7 @@ This creates:
 Enable detailed logging for debugging:
 
 ```bash
-webgemini -v <command>
+bun run src/cli.ts -v <command>
 ```
 
 ## Configuration
@@ -236,16 +287,122 @@ The storage file (`storage_state.json`) contains your authentication cookies. It
 |----------|-------------|---------|
 | `WEBGEMINI_CONFIG_DIR` | Configuration directory | `~/.config/webgemini-cli/` |
 | `WEBGEMINI_VERBOSE` | Enable verbose logging | `false` |
+| `PYTHON_WRAPPER_PATH` | Path to Python wrapper script | `<project>/python/wrapper.py` |
+| `BROWSER_TYPE` | Browser to use (`chromium`, `lightpanda`, `remote`) | `chromium` |
+| `CHROMIUM_PATH` | Custom Chromium executable path | none |
+| `LIGHTPANDA_HOST` | Remote LightPanda WebSocket URL | none |
+| `LIGHTPANDA_DOCKER` | Auto-provision Docker container | `false` |
+| `REMOTE_HOST` | Remote browser WebSocket URL (alternative to LIGHTPANDA_HOST) | none |
+| `BROWSER_FALLBACK` | Fall back to Chromium if selected browser fails | `true` |
 
-## Demo Script
+### Browser Configuration
 
-A demo script is available at `scripts/demo.py` that demonstrates the library's functionality by listing 5 most recent chats and appending "Hello from the API" to the most recent chat.
+The CLI supports multiple browser types with flexible configuration:
+
+#### Browser Types
+
+| Type | Description |
+|------|-------------|
+| `chromium` | Use Chromium (system-installed or Chromium-based browser) |
+| `lightpanda` | Use LightPanda browser (default) |
+| `remote` | Connect to a remote browser via WebSocket |
+
+#### CLI Flag
 
 ```bash
-python scripts/demo.py
+# Use Chromium
+webgemini auth --browser chromium
+
+# Use LightPanda
+webgemini auth --browser lightpanda
+
+# Use remote browser
+webgemini auth --browser remote --remote-host ws://localhost:9222
 ```
 
+#### Environment Variables
+
+```bash
+# Set browser type
+export BROWSER_TYPE=chromium
+
+# Set custom Chromium path
+export CHROMIUM_PATH=/path/to/chromium
+
+# Set remote browser
+export LIGHTPANDA_HOST=ws://localhost:9222
+
+# Disable fallback to Chromium on failure
+export BROWSER_FALLBACK=false
+```
+
+#### Config File
+
+Create `~/.config/webgemini-cli/config.json` or `~/.config/webgemini-cli/.webgeminirc`:
+
+```json
+{
+  "browser": {
+    "type": "chromium",
+    "chromiumPath": "/custom/path/to/chromium",
+    "remoteHost": "ws://localhost:9222"
+  }
+}
+```
+
+#### Precedence
+
+Configuration values are resolved in this order (highest to lowest):
+
+1. **CLI flags** (e.g., `--browser chromium`)
+2. **Environment variables** (e.g., `BROWSER_TYPE=chromium`)
+3. **Config file** (e.g., `~/.config/webgemini-cli/config.json`)
+4. **Default values** (chromium, no custom path)
+
+Example: If `BROWSER_TYPE=lightpanda` is set in the environment but `--browser chromium` is passed via CLI, the CLI value takes precedence.
+
+## Python Wrapper
+
+The CLI delegates Gemini API operations to a Python subprocess (`python/wrapper.py`) using JSON over stdin/stdout.
+
 ## Troubleshooting
+
+### Docker LightPanda Not Running
+
+If you're using Docker LightPanda and authentication fails:
+
+1. Check if Docker is running:
+   ```bash
+   docker ps -a | grep lightpanda
+   ```
+
+2. Start the container:
+   ```bash
+   docker start lightpanda
+   ```
+
+3. Or recreate the container:
+   ```bash
+   docker stop lightpanda
+   docker rm lightpanda
+   docker run -d --name lightpanda -p 9222:9222 lightpanda/browser:nightly
+   ```
+
+4. Use automatic provisioning:
+   ```bash
+   LIGHTPANDA_DOCKER=true webgemini auth
+   ```
+
+### LightPanda Not Found
+
+If you see "LightPanda not found" errors:
+
+1. Install LightPanda globally:
+   ```bash
+   npm install -g @lightpanda/browser
+   ```
+
+2. Or visit https://lightpanda.dev for alternative installation methods
 
 ### Browser Automation Issues
 
@@ -264,27 +421,120 @@ If browser automation fails or is unavailable, you can manually extract cookies 
    }
    ```
 
+### Chromium Not Found
+
+If you see "Chromium not found" errors:
+
+1. Install Chromium or use an existing installation:
+   ```bash
+   # On macOS with Homebrew
+   brew install chromium
+
+   # On Ubuntu/Debian
+   sudo apt install chromium
+   ```
+
+2. Or specify a custom Chromium path:
+   ```bash
+   export CHROMIUM_PATH=/path/to/your/chromium
+   webgemini auth --browser chromium
+   ```
+
+### Remote Browser Connection Failed
+
+If you see "Remote browser connection failed" errors:
+
+1. Ensure the remote browser is running and accessible:
+   ```bash
+   # Check if remote browser is reachable
+   curl -I http://localhost:9222
+   ```
+
+2. Verify the WebSocket URL is correct:
+   ```bash
+   webgemini auth --browser remote --remote-host ws://localhost:9222
+   ```
+
+3. For Docker-based remote browsers, ensure the container is running:
+   ```bash
+   docker ps | grep lightpanda
+   docker logs lightpanda
+   ```
+
+### Wrong Browser Type
+
+If the wrong browser is being used:
+
+1. Check current configuration:
+   ```bash
+   webgemini status
+   ```
+
+2. Override with CLI flag (takes highest precedence):
+   ```bash
+   webgemini auth --browser chromium
+   ```
+
+3. Or set environment variable:
+   ```bash
+   export BROWSER_TYPE=chromium
+   ```
+
+4. Check config file if CLI/env not set:
+   ```bash
+   cat ~/.config/webgemini-cli/config.json
+   ```
+
 ### Session Expired
 
 If you see "Session expired" errors:
 
-1. Run `webgemini auth` to re-authenticate
-2. If the issue persists, delete `storage_state.json` and run `webgemini auth` again
+1. Run `bun run src/cli.ts auth` to re-authenticate
+2. If the issue persists, delete `storage_state.json` and run `bun run src/cli.ts auth` again
 
 ### API Errors
 
 If you encounter API errors:
 
-1. Run `webgemini status` to check your authentication state
+1. Run `bun run src/cli.ts status` to check your authentication state
 2. Ensure you have a valid Google account with Gemini access
-3. Try re-authenticating with `webgemini auth`
+3. Try re-authenticating with `bun run src/cli.ts auth`
 
 ### Verbose Logging
 
 Use the `-v` or `--verbose` flag to enable detailed logging for debugging:
 
 ```bash
-webgemini -v list
+bun run src/cli.ts -v list
+```
+
+## Building
+
+Build a standalone executable:
+
+```bash
+bun run build
+```
+
+The output will be in `dist/webgemini.exe` (Windows) or `dist/webgemini` (Unix/macOS). The standalone executable is a single file containing the Bun runtime and all dependencies, approximately 110 MB in size.
+
+## Testing
+
+Run tests with:
+
+```bash
+bun test
+```
+
+## Project Structure
+
+```
+webgemini-cli/
+├── src/                    # TypeScript source
+├── python/                 # Python wrapper (Gemini API)
+├── tests/                  # TypeScript tests
+├── dist/                   # Build output
+└── README.md
 ```
 
 ## Future Enhancements
