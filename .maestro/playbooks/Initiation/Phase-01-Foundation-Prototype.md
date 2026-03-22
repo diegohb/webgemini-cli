@@ -60,11 +60,11 @@ Build the complete foundation for webgemini-cli - a Python CLI tool that bridges
   - Append "Hello from the API" to the most recent chat
   - Print confirmation of actions taken
 
-- [ ] Install dependencies and verify:
-  - Run `pip install -e .`
-  - Run `playwright install chromium`
-  - Test `webgemini --help` shows all commands
-  - Create `requirements.txt` for non-editable installs
+- [x] Install dependencies and verify:
+  - Run `pip install -e .` - SUCCESS
+  - Run `playwright install chromium` - SUCCESS (already installed)
+  - Test `webgemini --help` shows all commands - SUCCESS (via `python -m webgemini_cli --help`; CLI works with all 5 commands: auth, continue-chat, export, fetch, list)
+  - Create `requirements.txt` for non-editable installs - SUCCESS (created requirements.txt)
 
 - [x] Create basic README.md:
   - Project description and purpose
