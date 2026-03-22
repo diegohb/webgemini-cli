@@ -24,7 +24,15 @@ async function attemptLogin(remoteHost?: string): Promise<GeminiCookie[]> {
   }
   
   try {
-    const cdpUrl = `http://127.0.0.1:${browserProc.port}`;
+    let cdpUrl: string;
+    if (browserProc.remote) {
+      cdpUrl = remoteHost!;
+      if (cdpUrl.includes("0.0.0.0")) {
+        cdpUrl = cdpUrl.replace("0.0.0.0", "localhost");
+      }
+    } else {
+      cdpUrl = `http://127.0.0.1:${browserProc.port}`;
+    }
     cdpConn = await connectToLightPanda(cdpUrl);
 
     await cdpConn.page.goto(GEMINI_URL);

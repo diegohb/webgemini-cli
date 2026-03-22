@@ -42,7 +42,8 @@ program
   .command("auth")
   .description("Authenticate with Gemini")
   .option("--lightpanda-host <ws://host:port>", "Connect to remote LightPanda browser")
-  .action(async (options: { lightpandaHost?: string }) => {
+  .option("--lightpanda-docker", "Use Docker LightPanda (auto-provision if needed)")
+  .action(async (options: { lightpandaHost?: string; lightpandaDocker?: boolean }) => {
     try {
       logVerbose("Starting browser authentication...");
       console.log("Starting browser authentication...");
@@ -51,7 +52,7 @@ program
       
       if (options.lightpandaHost) {
         remoteHost = options.lightpandaHost;
-      } else if (getLightPandaDocker()) {
+      } else if (options.lightpandaDocker || getLightPandaDocker()) {
         const { ensureLightPandaRunning } = await import("./docker.js");
         remoteHost = await ensureLightPandaRunning();
         console.log(`\x1b[90m  Auto-provisioning Docker LightPanda...\x1b[0m`);
@@ -398,8 +399,8 @@ function handleAuthError(error: unknown): void {
   }
   if (error instanceof BrowserConnectionError) {
     console.error(`\x1b[31m✗ Connection failed:\x1b[0m ${error.message}`);
-    console.error(`\x1b[90m  Tip: Use Docker LightPanda by setting LIGHTPANDA_DOCKER=true or --lightpanda-host flag.\x1b[0m`);
-    console.error(`\x1b[90m  Or run: docker run -d --name lightpanda -p 9222:9222 lightpanda/browser:nightly\x1b[0m`);
+    console.error(`\x1b[90m  Note: Docker LightPanda is experimental and may have CDP compatibility issues.\x1b[0m`);
+    console.error(`\x1b[90m  Use --lightpanda-host to connect to a working remote LightPanda instance.\x1b[0m`);
     process.exit(1);
   }
   if (error instanceof DockerNotAvailableError) {
