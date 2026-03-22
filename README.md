@@ -1,24 +1,39 @@
 # webgemini-cli
 
-A Python CLI tool that bridges Playwright-based Google authentication with the python-gemini-api library.
+A TypeScript CLI tool that bridges LightPanda browser automation with Gemini web API via a Python subprocess wrapper.
 
 ## Prerequisites
 
-- **Python**: Version 3.11 or higher
-- **Chromium Browser**: Required by Playwright for authentication
+- **Bun**: Version 1.0 or higher ([Install](https://bun.sh))
+- **LightPanda Browser**: Required for authentication ([Install](https://lightpanda.dev))
+- **Python**: Version 3.11 or higher (for the Python wrapper)
 - **Google Account**: A Google account with access to Gemini (https://gemini.google.com)
 
-### Installation
+### Browser Installation
+
+LightPanda is required for authentication. Install it via npm:
 
 ```bash
-pip install -e .
-playwright install chromium
+npm install -g @lightpanda/browser
 ```
 
-> **Note**: If you encounter issues with Playwright, ensure you have the necessary system dependencies:
-> ```bash
-> playwright install-deps
-> ```
+Or visit https://lightpanda.dev for alternative installation methods.
+
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/your-repo/webgemini-cli.git
+cd webgemini-cli
+
+# Install dependencies
+bun install
+
+# Build the CLI (optional, for faster startup)
+bun run build
+```
+
+The CLI can be run directly with `bun run src/cli.ts` or via the built binary at `dist/webgemini-cli`.
 
 ## Architecture
 
@@ -29,20 +44,19 @@ playwright install chromium
 │                                                                  │
 │  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐    │
 │  │     CLI      │────▶│   Gemini     │────▶│    Auth      │    │
-│  │   (click)    │     │   Client     │     │   Manager    │    │
+│  │  (TypeScript)│     │   Client     │     │   Manager    │    │
 │  └──────────────┘     └──────────────┘     └──────────────┘    │
 │         │                    │                    │            │
 │         │                    │                    ▼            │
 │         │                    │            ┌──────────────┐    │
-│         │                    │            │   Playwright │    │
-│         │                    │            │   (Browser)  │    │
+│         │                    │            │  LightPanda  │    │
+│         │                    │            │   Browser    │    │
 │         │                    │            └──────────────┘    │
 │         │                    │                    │            │
 │         ▼                    ▼                    ▼            │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐    │
-│  │   Rich UI    │     │    python    │     │   Cookie     │    │
-│  │  (tables,    │     │   -gemini    │     │    Store     │    │
-│  │   progress)  │     │     -api     │     │  (JSON file) │    │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
+│  │   Console     │     │   Python     │     │    Cookie    │   │
+│  │    Output     │     │  Subprocess  │     │    Store     │   │
 │  └──────────────┘     └──────────────┘     └──────────────┘    │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -52,11 +66,24 @@ playwright install chromium
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| **CLI** | `cli.py` | Command-line interface using Click framework |
-| **GeminiClient** | `gemini_client.py` | Interacts with Gemini API using cookies |
-| **AuthManager** | `auth_manager.py` | Handles Playwright browser automation for login |
-| **Exporter** | `exporter.py` | Formats conversations as Markdown/JSON |
-| **Config** | `config.py` | Manages configuration directories and paths |
+| **CLI** | `src/cli.ts` | Command-line interface using Commander.js |
+| **GeminiClient** | `src/gemini-client.ts` | TypeScript wrapper for Python subprocess |
+| **AuthManager** | `src/auth.ts` | LightPanda browser automation for login |
+| **PythonWrapper** | `python/wrapper.py` | JSON-based subprocess protocol for Gemini API |
+| **CookieStore** | `src/cookie-store.ts` | Persistent cookie storage |
+
+### TypeScript + Python Architecture
+
+The CLI is written in TypeScript for:
+- Fast startup with Bun
+- Modern async/await patterns
+- Type safety
+
+Python is used for the Gemini API interaction layer because:
+- The python-gemini-api library handles complex API semantics
+- Existing robust implementation in the `webgemini_cli` Python package
+
+Communication happens via JSON over stdin/stdout subprocess protocol.
 
 ## Authentication Flow
 
@@ -68,10 +95,10 @@ playwright install chromium
 │   1. User runs 'webgemini auth'                                   │
 │            │                                                      │
 │            ▼                                                      │
-│   2. Playwright launches Chromium browser (headless=False)       │
+│   2. LightPanda launches Chromium browser (headless=False)       │
 │            │                                                      │
 │            ▼                                                      │
-│   3. Navigate to https://gemini.google.com                        │
+│   3. Navigate to https://gemini.google.com                       │
 │            │                                                      │
 │            ▼                                                      │
 │   4. User manually logs in with Google credentials               │
@@ -82,17 +109,17 @@ playwright install chromium
 │       - __Secure-1PSIDTS                                          │
 │            │                                                      │
 │            ▼                                                      │
-│   6. Cookies captured and saved to storage_state.json             │
+│   6. Cookies captured and saved to storage_state.json            │
 │            │                                                      │
 │            ▼                                                      │
-│   7. GeminiClient uses cookies for API requests                   │
+│   7. GeminiClient sends cookies to Python wrapper for API calls  │
 │                                                                   │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Cookie Format
 
-The python-gemini-api library expects cookies in a specific JSON format:
+The Python Gemini API expects cookies in a specific JSON format:
 
 ```json
 {
@@ -132,7 +159,13 @@ Sessions typically expire when the `__Secure-1PSIDTS` cookie expires. The CLI ch
 Before using the CLI, you need to authenticate with your Google account:
 
 ```bash
-webgemini auth
+bun run src/cli.ts auth
+```
+
+Or with the built binary:
+
+```bash
+./dist/webgemini-cli auth
 ```
 
 This will open a browser window for you to log in with your Google account. Cookies will be saved for future use.
@@ -142,7 +175,7 @@ This will open a browser window for you to log in with your Google account. Cook
 Verify your authentication status:
 
 ```bash
-webgemini status
+bun run src/cli.ts status
 ```
 
 ### List Chats
@@ -150,29 +183,29 @@ webgemini status
 Display all your Gemini chats in a table:
 
 ```bash
-webgemini list
+bun run src/cli.ts list
 ```
 
 Options:
-- `-n, --limit N`: Maximum number of chats to display (default: 10, max: 50)
+- `-n, --limit <number>`: Maximum number of chats to display (default: 10, max: 50)
 
 ### Fetch Chat History
 
 Fetch and display the message history of a specific conversation:
 
 ```bash
-webgemini fetch <conversation_id>
+bun run src/cli.ts fetch <conversation-id>
 ```
 
 Options:
-- `--format, -f`: Output format - `text` (default) or `json`
+- `-f, --format <format>`: Output format - `text` (default) or `json`
 
 ### Continue a Chat
 
 Send a message to an existing conversation:
 
 ```bash
-webgemini continue <conversation_id> <message>
+bun run src/cli.ts continue <conversation-id> <message>
 ```
 
 ### Export Chat
@@ -180,12 +213,12 @@ webgemini continue <conversation_id> <message>
 Export a conversation to a Markdown file:
 
 ```bash
-webgemini export <conversation_id>
+bun run src/cli.ts export <conversation-id>
 ```
 
 Options:
-- `-o, --output PATH`: Custom output file path
-- `-f, --format FORMAT`: Export format - `markdown` (default) or `json`
+- `-o, --output <path>`: Custom output file path
+- `-f, --format <format>`: Export format - `markdown` (default) or `json`
 - `--include-metadata`: Include full metadata in export
 
 Default filename pattern: `gemini-chat-{conversation_id}-{date}.md`
@@ -195,12 +228,12 @@ Default filename pattern: `gemini-chat-{conversation_id}-{date}.md`
 Export all conversations to a directory with an index file:
 
 ```bash
-webgemini export-all
+bun run src/cli.ts export-all
 ```
 
 Options:
-- `-o, --output-dir PATH`: Directory to export to (default: `./exports`)
-- `--since ISO_DATE`: Export only conversations newer than this date
+- `-o, --output-dir <directory>`: Directory to export to (default: `./exports`)
+- `--since <date>`: Export only conversations newer than this date
 - `--include-metadata`: Include full metadata in each export
 
 This creates:
@@ -212,7 +245,7 @@ This creates:
 Enable detailed logging for debugging:
 
 ```bash
-webgemini -v <command>
+bun run src/cli.ts -v <command>
 ```
 
 ## Configuration
@@ -236,16 +269,108 @@ The storage file (`storage_state.json`) contains your authentication cookies. It
 |----------|-------------|---------|
 | `WEBGEMINI_CONFIG_DIR` | Configuration directory | `~/.config/webgemini-cli/` |
 | `WEBGEMINI_VERBOSE` | Enable verbose logging | `false` |
+| `PYTHON_WRAPPER_PATH` | Path to Python wrapper script | `<project>/python/wrapper.py` |
 
-## Demo Script
+## Python Wrapper Protocol
 
-A demo script is available at `scripts/demo.py` that demonstrates the library's functionality by listing 5 most recent chats and appending "Hello from the API" to the most recent chat.
+The Python wrapper communicates via JSON over stdin/stdout. This allows the TypeScript CLI to delegate Gemini API operations to Python.
 
-```bash
-python scripts/demo.py
+### Request Format
+
+```json
+{
+  "command": "list_chats" | "fetch_chat" | "continue_chat",
+  "cookies": { "cookie_name": "cookie_value", ... },
+  "params": { ... }
+}
+```
+
+### Commands
+
+#### list_chats
+```json
+{
+  "command": "list_chats",
+  "cookies": { "__Secure-1PSID": "...", "__Secure-1PSIDTS": "..." },
+  "params": {}
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    { "id": "abc123", "title": "Chat Title" }
+  ],
+  "error": null
+}
+```
+
+#### fetch_chat
+```json
+{
+  "command": "fetch_chat",
+  "cookies": { "__Secure-1PSID": "...", "__Secure-1PSIDTS": "..." },
+  "params": { "conversation_id": "abc123" }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    { "role": "user", "content": "Hello", "conversation_id": "abc123" },
+    { "role": "model", "content": "Hi there!", "conversation_id": "abc123" }
+  ],
+  "error": null
+}
+```
+
+#### continue_chat
+```json
+{
+  "command": "continue_chat",
+  "cookies": { "__Secure-1PSID": "...", "__Secure-1PSIDTS": "..." },
+  "params": { "conversation_id": "abc123", "message": "Hello!" }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": "Model response text",
+  "error": null
+}
+```
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "type": "AuthenticationError",
+    "message": "Missing required cookies"
+  }
+}
 ```
 
 ## Troubleshooting
+
+### LightPanda Not Found
+
+If you see "LightPanda not found" errors:
+
+1. Install LightPanda globally:
+   ```bash
+   npm install -g @lightpanda/browser
+   ```
+
+2. Or visit https://lightpanda.dev for alternative installation methods
 
 ### Browser Automation Issues
 
@@ -268,23 +393,89 @@ If browser automation fails or is unavailable, you can manually extract cookies 
 
 If you see "Session expired" errors:
 
-1. Run `webgemini auth` to re-authenticate
-2. If the issue persists, delete `storage_state.json` and run `webgemini auth` again
+1. Run `bun run src/cli.ts auth` to re-authenticate
+2. If the issue persists, delete `storage_state.json` and run `bun run src/cli.ts auth` again
+
+### Python Wrapper Errors
+
+If you see Python-related errors:
+
+1. Ensure Python 3.11+ is installed:
+   ```bash
+   python --version
+   ```
+
+2. Ensure the Python dependencies are available. The wrapper uses the `webgemini_cli` package from `python/`
 
 ### API Errors
 
 If you encounter API errors:
 
-1. Run `webgemini status` to check your authentication state
+1. Run `bun run src/cli.ts status` to check your authentication state
 2. Ensure you have a valid Google account with Gemini access
-3. Try re-authenticating with `webgemini auth`
+3. Try re-authenticating with `bun run src/cli.ts auth`
 
 ### Verbose Logging
 
 Use the `-v` or `--verbose` flag to enable detailed logging for debugging:
 
 ```bash
-webgemini -v list
+bun run src/cli.ts -v list
+```
+
+## Building
+
+Build a standalone executable:
+
+```bash
+bun run build
+```
+
+The output will be in `dist/webgemini-cli`.
+
+## Testing
+
+Run tests with:
+
+```bash
+bun test
+```
+
+## Project Structure
+
+```
+webgemini-cli/
+├── src/                    # TypeScript source
+│   ├── cli.ts              # CLI entry point
+│   ├── index.ts            # Module exports
+│   ├── auth.ts             # Authentication manager
+│   ├── browser.ts          # Browser process management
+│   ├── cdp-client.ts       # Chrome DevTools Protocol client
+│   ├── config.ts           # Configuration utilities
+│   ├── cookie-store.ts     # Cookie persistence
+│   ├── errors.ts           # Error classes
+│   ├── exporter.ts         # Export formatting
+│   ├── gemini-client.ts    # Gemini API client wrapper
+│   ├── python-wrapper.ts   # Python subprocess protocol
+│   └── types/
+│       └── index.ts        # TypeScript type definitions
+├── python/                 # Python wrapper
+│   ├── wrapper.py          # JSON protocol entry point
+│   ├── webgemini_cli/      # Python package
+│   │   ├── __init__.py
+│   │   ├── gemini_client.py
+│   │   ├── exceptions.py
+│   │   ├── auth_manager.py
+│   │   ├── config.py
+│   │   ├── exporter.py
+│   │   └── logging_config.py
+│   ├── pyproject.toml
+│   └── requirements.txt
+├── tests/                  # TypeScript tests
+├── dist/                   # Build output
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
 
 ## Future Enhancements

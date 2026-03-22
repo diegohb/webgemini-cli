@@ -4,7 +4,7 @@ Complete the migration with documentation updates, testing, and cleanup. Remove 
 
 ## Tasks
 
-- [ ] Update README.md:
+- [x] Update README.md:
   - Update prerequisites: Bun instead of Python, LightPanda browser
   - Update installation instructions for Bun
   - Document new architecture (TypeScript + Python subprocess)
