@@ -33,13 +33,13 @@ Complete the migration with documentation updates, testing, and cleanup. Remove 
   - Document build output location
   - **Note**: Fixed `package.json` build script - changed `--outdir ./dist --compile` to `--outfile ./dist/webgemini.exe --compile` and added external dependencies for playwright packages (`-e playwright -e playwright-core -e chromium-bidi -e electron`) to resolve bundling errors. Build output: `dist/webgemini.exe`
 
-- [ ] Clean up obsolete files:
-  - Remove old `src/webgemini_cli/` Python directory (moved to python/)
-  - Remove old `pyproject.toml` from root (create new one in python/)
-  - Remove old `requirements.txt` from root
-  - Remove `.pytest_cache/` from root
-  - Remove `.ruff_cache/` from root
-  - Keep Python tests in `python/tests/`
+- [x] Clean up obsolete files:
+  - Remove old `src/webgemini_cli/` Python directory (moved to python/) - Already clean
+  - Remove old `pyproject.toml` from root (create new one in python/) - Done
+  - Remove old `requirements.txt` from root - Done
+  - Remove `.pytest_cache/` from root - Already clean
+  - Remove `.ruff_cache/` from root - Done
+  - Keep Python tests in `python/tests/` - Moved to python/tests/
 
 - [ ] Create final project structure:
   ```
