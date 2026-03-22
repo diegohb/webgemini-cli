@@ -1,6 +1,6 @@
 # webgemini-cli
 
-A TypeScript CLI tool that bridges LightPanda browser automation with Gemini web API via a Python subprocess wrapper.
+A TypeScript CLI tool that bridges LightPanda browser automation with Gemini web API.
 
 ## Prerequisites
 
@@ -67,23 +67,13 @@ The CLI can be run directly with `bun run src/cli.ts` or via the built binary at
 | Component | File | Purpose |
 |-----------|------|---------|
 | **CLI** | `src/cli.ts` | Command-line interface using Commander.js |
-| **GeminiClient** | `src/gemini-client.ts` | TypeScript wrapper for Python subprocess |
+| **GeminiClient** | `src/gemini-client.ts` | Gemini API client |
 | **AuthManager** | `src/auth.ts` | LightPanda browser automation for login |
-| **PythonWrapper** | `python/wrapper.py` | JSON-based subprocess protocol for Gemini API |
 | **CookieStore** | `src/cookie-store.ts` | Persistent cookie storage |
 
-### TypeScript + Python Architecture
+### Architecture
 
-The CLI is written in TypeScript for:
-- Fast startup with Bun
-- Modern async/await patterns
-- Type safety
-
-Python is used for the Gemini API interaction layer because:
-- The python-gemini-api library handles complex API semantics
-- Existing robust implementation in the `webgemini_cli` Python package
-
-Communication happens via JSON over stdin/stdout subprocess protocol.
+The CLI is written in TypeScript using Bun for fast startup and type safety. Gemini API calls are delegated to a Python subprocess wrapper via JSON over stdin/stdout.
 
 ## Authentication Flow
 
@@ -110,16 +100,11 @@ Communication happens via JSON over stdin/stdout subprocess protocol.
 │            │                                                      │
 │            ▼                                                      │
 │   6. Cookies captured and saved to storage_state.json            │
-│            │                                                      │
-│            ▼                                                      │
-│   7. GeminiClient sends cookies to Python wrapper for API calls  │
 │                                                                   │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Cookie Format
-
-The Python Gemini API expects cookies in a specific JSON format:
 
 ```json
 {
@@ -272,93 +257,9 @@ The storage file (`storage_state.json`) contains your authentication cookies. It
 | `WEBGEMINI_VERBOSE` | Enable verbose logging | `false` |
 | `PYTHON_WRAPPER_PATH` | Path to Python wrapper script | `<project>/python/wrapper.py` |
 
-## Python Wrapper Protocol
+## Python Wrapper
 
-The Python wrapper communicates via JSON over stdin/stdout. This allows the TypeScript CLI to delegate Gemini API operations to Python.
-
-### Request Format
-
-```json
-{
-  "command": "list_chats" | "fetch_chat" | "continue_chat",
-  "cookies": { "cookie_name": "cookie_value", ... },
-  "params": { ... }
-}
-```
-
-### Commands
-
-#### list_chats
-```json
-{
-  "command": "list_chats",
-  "cookies": { "__Secure-1PSID": "...", "__Secure-1PSIDTS": "..." },
-  "params": {}
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    { "id": "abc123", "title": "Chat Title" }
-  ],
-  "error": null
-}
-```
-
-#### fetch_chat
-```json
-{
-  "command": "fetch_chat",
-  "cookies": { "__Secure-1PSID": "...", "__Secure-1PSIDTS": "..." },
-  "params": { "conversation_id": "abc123" }
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    { "role": "user", "content": "Hello", "conversation_id": "abc123" },
-    { "role": "model", "content": "Hi there!", "conversation_id": "abc123" }
-  ],
-  "error": null
-}
-```
-
-#### continue_chat
-```json
-{
-  "command": "continue_chat",
-  "cookies": { "__Secure-1PSID": "...", "__Secure-1PSIDTS": "..." },
-  "params": { "conversation_id": "abc123", "message": "Hello!" }
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": "Model response text",
-  "error": null
-}
-```
-
-### Error Response
-
-```json
-{
-  "success": false,
-  "data": null,
-  "error": {
-    "type": "AuthenticationError",
-    "message": "Missing required cookies"
-  }
-}
-```
+The CLI delegates Gemini API operations to a Python subprocess (`python/wrapper.py`) using JSON over stdin/stdout.
 
 ## Troubleshooting
 
@@ -396,17 +297,6 @@ If you see "Session expired" errors:
 
 1. Run `bun run src/cli.ts auth` to re-authenticate
 2. If the issue persists, delete `storage_state.json` and run `bun run src/cli.ts auth` again
-
-### Python Wrapper Errors
-
-If you see Python-related errors:
-
-1. Ensure Python 3.11+ is installed:
-   ```bash
-   python --version
-   ```
-
-2. Ensure the Python dependencies are available. The wrapper uses the `webgemini_cli` package from `python/`
 
 ### API Errors
 
@@ -447,35 +337,9 @@ bun test
 ```
 webgemini-cli/
 ├── src/                    # TypeScript source
-│   ├── cli.ts              # CLI entry point
-│   ├── index.ts            # Module exports
-│   ├── auth.ts             # Authentication manager
-│   ├── browser.ts          # Browser process management
-│   ├── cdp-client.ts       # Chrome DevTools Protocol client
-│   ├── config.ts           # Configuration utilities
-│   ├── cookie-store.ts     # Cookie persistence
-│   ├── errors.ts           # Error classes
-│   ├── exporter.ts         # Export formatting
-│   ├── gemini-client.ts    # Gemini API client wrapper
-│   ├── python-wrapper.ts   # Python subprocess protocol
-│   └── types/
-│       └── index.ts        # TypeScript type definitions
-├── python/                 # Python wrapper
-│   ├── wrapper.py          # JSON protocol entry point
-│   ├── webgemini_cli/      # Python package
-│   │   ├── __init__.py
-│   │   ├── gemini_client.py
-│   │   ├── exceptions.py
-│   │   ├── auth_manager.py
-│   │   ├── config.py
-│   │   ├── exporter.py
-│   │   └── logging_config.py
-│   ├── pyproject.toml
-│   └── requirements.txt
+├── python/                 # Python wrapper (Gemini API)
 ├── tests/                  # TypeScript tests
 ├── dist/                   # Build output
-├── package.json
-├── tsconfig.json
 └── README.md
 ```
 

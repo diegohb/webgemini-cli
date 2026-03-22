@@ -5,10 +5,8 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-
-# Python
-*.pyc
-*.pyo
+python/__pycache__/
+python/*.pyc
 
 # IDE
 .vscode/
