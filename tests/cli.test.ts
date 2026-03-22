@@ -430,3 +430,92 @@ describe("Error Classes", () => {
     expect(new UnknownClass("test")).toBeInstanceOf(Error);
   });
 });
+
+describe("Browser Flag", () => {
+  const cliPath = join(process.cwd(), "src", "cli.ts");
+
+  test("--help shows browser option", async () => {
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "--help"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(stdout).toContain("--browser");
+    expect(stdout).toContain("chromium|lightpanda|remote");
+  });
+
+  test("--browser flag is accepted by status command", async () => {
+    cleanupTestStorage();
+
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "-b", "chromium", "status"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(proc.exitCode).toBe(2);
+    expect(stdout).toContain("Browser type");
+  });
+
+  test("--browser flag long form is accepted", async () => {
+    cleanupTestStorage();
+
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "--browser", "lightpanda", "status"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(proc.exitCode).toBe(2);
+    expect(stdout).toContain("Browser type");
+  });
+
+  test("auth command --help shows remote-host option", async () => {
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "auth", "--help"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(stdout).toContain("--remote-host");
+    expect(stdout).toContain("deprecated");
+  });
+});
+
+describe("Config Module", () => {
+  test("getBrowserType returns chromium by default", async () => {
+    const { getBrowserType } = await import("../src/config");
+    const original = Bun.env.BROWSER_TYPE;
+    delete Bun.env.BROWSER_TYPE;
+    const result = getBrowserType();
+    expect(result).toBe("chromium");
+    Bun.env.BROWSER_TYPE = original;
+  });
+
+  test("getBrowserType respects BROWSER_TYPE env var", async () => {
+    const { getBrowserType } = await import("../src/config");
+    const original = Bun.env.BROWSER_TYPE;
+    Bun.env.BROWSER_TYPE = "lightpanda";
+    const result = getBrowserType();
+    expect(result).toBe("lightpanda");
+    Bun.env.BROWSER_TYPE = original;
+  });
+
+  test("getBrowserType returns chromium for invalid values", async () => {
+    const { getBrowserType } = await import("../src/config");
+    const original = Bun.env.BROWSER_TYPE;
+    Bun.env.BROWSER_TYPE = "invalid";
+    const result = getBrowserType();
+    expect(result).toBe("chromium");
+    Bun.env.BROWSER_TYPE = original;
+  });
+});

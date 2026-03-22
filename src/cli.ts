@@ -17,7 +17,7 @@ import {
   DockerContainerError,
 } from "./errors.js";
 import { checkCookieFreshness } from "./auth.js";
-import { getStorageStatePath, CONFIG_DIR_DEFAULT, getLightPandaHost, getLightPandaDocker } from "./config.js";
+import { getStorageStatePath, CONFIG_DIR_DEFAULT, getLightPandaHost, getLightPandaDocker, getBrowserType, type BrowserType } from "./config.js";
 import { existsSync } from "fs";
 import { join } from "path";
 
@@ -30,11 +30,19 @@ function logVerbose(...args: unknown[]): void {
   }
 }
 
+function getBrowserFromFlags(cliBrowser?: string): BrowserType {
+  if (cliBrowser === "chromium" || cliBrowser === "lightpanda" || cliBrowser === "remote") {
+    return cliBrowser;
+  }
+  return getBrowserType();
+}
+
 program
   .name("webgemini")
   .description("CLI for Gemini web interactions")
   .version("0.2.0")
   .option("-v, --verbose", "Enable verbose output")
+  .option("-b, --browser <type>", "Browser type (chromium|lightpanda|remote)")
   .hook("preAction", (thisCommand) => {
     verbose = thisCommand.opts().verbose === true;
   });
@@ -42,26 +50,49 @@ program
 program
   .command("auth")
   .description("Authenticate with Gemini")
-  .option("--lightpanda-host <ws://host:port>", "Connect to remote LightPanda browser")
-  .option("--lightpanda-docker", "Use Docker LightPanda (auto-provision if needed)")
-  .action(async (options: { lightpandaHost?: string; lightpandaDocker?: boolean }) => {
+  .option("--lightpanda-host <ws://host:port>", "Connect to remote LightPanda browser (deprecated, use --browser remote --remote-host)")
+  .option("--lightpanda-docker", "Use Docker LightPanda (auto-provision if needed) (deprecated, use --browser lightpanda)")
+  .option("--remote-host <ws://host:port>", "Remote browser WebSocket URL (required when --browser remote is used)")
+  .action(async (options: { browser?: string; lightpandaHost?: string; lightpandaDocker?: boolean; remoteHost?: string }) => {
     try {
       logVerbose("Starting browser authentication...");
       console.log("Starting browser authentication...");
-      
-      let remoteHost: string | undefined;
-      
+
       if (options.lightpandaHost) {
-        remoteHost = options.lightpandaHost;
-      } else if (options.lightpandaDocker || getLightPandaDocker()) {
-        const { ensureLightPandaRunning } = await import("./docker.js");
-        remoteHost = await ensureLightPandaRunning();
-        console.log(`\x1b[90m  Auto-provisioning Docker LightPanda...\x1b[0m`);
-      } else {
-        remoteHost = getLightPandaHost();
+        console.log(`\x1b[33m  Warning: --lightpanda-host is deprecated. Use --browser remote --remote-host <url>\x1b[0m`);
       }
-      
-      const cookies = await login(remoteHost);
+      if (options.lightpandaDocker) {
+        console.log(`\x1b[33m  Warning: --lightpanda-docker is deprecated. Use --browser lightpanda\x1b[0m`);
+      }
+
+      const browserType = getBrowserFromFlags(options.browser);
+      let remoteHost: string | undefined;
+
+      if (browserType === "remote") {
+        if (options.remoteHost) {
+          remoteHost = options.remoteHost;
+        } else if (options.lightpandaHost) {
+          remoteHost = options.lightpandaHost;
+        } else {
+          console.error(`\x1b[31m✗ Error:\x1b[0m --browser remote requires --remote-host <ws://host:port>`);
+          process.exit(1);
+        }
+      } else if (browserType === "lightpanda") {
+        if (options.lightpandaDocker || getLightPandaDocker()) {
+          const { ensureLightPandaRunning } = await import("./docker.js");
+          remoteHost = await ensureLightPandaRunning();
+          console.log(`\x1b[90m  Auto-provisioning Docker LightPanda...\x1b[0m`);
+        } else {
+          remoteHost = getLightPandaHost();
+        }
+      }
+
+      logVerbose(`Using browser type: ${browserType}`);
+      if (remoteHost) {
+        logVerbose(`Remote host: ${remoteHost}`);
+      }
+
+      const cookies = await login(browserType, remoteHost);
       logVerbose(`Authentication successful, saved ${cookies.length} cookies`);
       console.log(`\x1b[32m✓ Authentication successful!\x1b[0m`);
       console.log(`\x1b[90m  Saved ${cookies.length} cookies.\x1b[0m`);
@@ -335,15 +366,17 @@ program
 program
   .command("status")
   .description("Check authentication status")
-  .action(async () => {
+  .action(async (options: { browser?: string }) => {
     try {
       const configDir = Bun.env.WEBGEMINI_CONFIG_DIR ?? CONFIG_DIR_DEFAULT;
       const storagePath = getStorageStatePath();
       const storageExists = existsSync(storagePath);
+      const browserType = getBrowserFromFlags(options.browser);
 
       console.log(`\x1b[1mConfiguration Status\x1b[0m`);
       console.log(`  Config directory: \x1b[90m${configDir}\x1b[0m`);
       console.log(`  Storage file:    \x1b[90m${storagePath}\x1b[0m`);
+      console.log(`  Browser type:    \x1b[90m${browserType}\x1b[0m`);
 
       if (!storageExists) {
         console.log(`\n  Authentication: \x1b[31m✗ Missing\x1b[0m`);
@@ -405,8 +438,7 @@ function handleAuthError(error: unknown): void {
   }
   if (error instanceof BrowserConnectionError) {
     console.error(`\x1b[31m✗ Connection failed:\x1b[0m ${error.message}`);
-    console.error(`\x1b[90m  Note: Docker LightPanda is experimental and may have CDP compatibility issues.\x1b[0m`);
-    console.error(`\x1b[90m  Use --lightpanda-host to connect to a working remote LightPanda instance.\x1b[0m`);
+    console.error(`\x1b[90m  Use --browser remote --remote-host <ws://host:port> to connect to a remote browser.\x1b[0m`);
     process.exit(1);
   }
   if (error instanceof DockerNotAvailableError) {
