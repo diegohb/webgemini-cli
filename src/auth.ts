@@ -2,7 +2,7 @@ import { startBrowser, stopBrowser, type BrowserProcess } from "./browser.js";
 import { connectToLightPanda, closeCDPConnection, type CDPConnection } from "./cdp-client.js";
 import { saveCookies, loadCookies as loadCookiesFromStore } from "./cookie-store.js";
 import { AuthenticationError, CookieExpiredError, BrowserClosedError, BrowserConnectionError } from "./errors.js";
-import type { GeminiCookie } from "./types/index.js";
+import type { GeminiCookie } from "./types/gemini.js";
 
 const GEMINI_URL = "https://gemini.google.com";
 const REQUIRED_COOKIES = ["__Secure-1PSID", "__Secure-1PSIDTS"];

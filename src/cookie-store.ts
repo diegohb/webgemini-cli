@@ -1,7 +1,7 @@
 import { appendFileSync, readFileSync, existsSync } from "fs";
 import { getStorageStatePath, ensureConfigDir } from "./config.js";
 import { AuthenticationError, CookieExpiredError } from "./errors.js";
-import type { GeminiCookie } from "./types/index.js";
+import type { GeminiCookie } from "./types/gemini.js";
 
 export async function saveCookies(cookies: GeminiCookie[]): Promise<void> {
   ensureConfigDir();
