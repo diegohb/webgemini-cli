@@ -12,19 +12,19 @@ Complete the migration with documentation updates, testing, and cleanup. Remove 
   - Document Python wrapper protocol for future reference
   - Add troubleshooting section for common issues
 
-- [ ] Update project configuration files:
+- [x] Update project configuration files:
   - Update `.gitignore` for Bun artifacts (bun.lockb, dist/, node_modules/)
   - Keep Python gitignore patterns for python/ directory
   - Create/update `.python-version` in python/ subdirectory
   - Add `pyproject.toml` in python/ subdirectory for Python wrapper
 
-- [ ] Create tests:
+- [x] Create tests:
   - Create `tests/` directory with Bun test files
-  - Test Python wrapper JSON protocol
-  - Test TypeScript GeminiClient wrapper
-  - Test auth module (mock browser operations)
-  - Test CLI commands (integration tests)
-  - Run tests with `bun test`
+  - Test Python wrapper JSON protocol (tests/python-wrapper.test.ts)
+  - Test TypeScript GeminiClient wrapper (tests/gemini-client.test.ts)
+  - Test auth module (mock browser operations) - auth.test.ts covers validateCookies, checkCookieFreshness; browser operations require CDP mocking
+  - Test CLI commands (integration tests) (tests/cli.test.ts)
+  - Run tests with `bun test` - 75 tests pass
 
 - [ ] Verify build process:
   - Run `bun run build` to create standalone executable
