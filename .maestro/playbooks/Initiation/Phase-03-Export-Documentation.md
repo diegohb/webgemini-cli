@@ -13,7 +13,7 @@ Implement polished Markdown export functionality and comprehensive documentation
   - Add timestamps if available in message data
   - Add conversation ID as comment in header
 
-- [ ] Enhance export CLI command with options:
+- [x] Enhance export CLI command with options:
   - Add `--output` / `-o` for custom output file path
   - Add `--format` option supporting `markdown` (default) and `json`
   - Add `--include-metadata` flag to include full metadata in export
@@ -21,7 +21,7 @@ Implement polished Markdown export functionality and comprehensive documentation
   - Create output directory if it doesn't exist
   - Print success message with file path
 
-- [ ] Create batch export functionality:
+- [x] Create batch export functionality:
   - Add `webgemini export-all` command with `--output-dir` option
   - Export all conversations to individual Markdown files
   - Create index file `_index.md` listing all exported chats with links
