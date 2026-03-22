@@ -4,7 +4,7 @@ Implement polished Markdown export functionality and comprehensive documentation
 
 ## Tasks
 
-- [ ] Create export formatter module `src/webgemini_cli/exporter.py`:
+- [x] Create export formatter module `src/webgemini_cli/exporter.py`:
   - Implement `format_chat_as_markdown(messages: list[dict], title: str) -> str` function
   - Include YAML front matter with metadata (title, export_date, message_count)
   - Format user messages with `**User:**` prefix
