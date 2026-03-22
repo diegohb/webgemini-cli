@@ -1,4 +1,6 @@
+import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -196,14 +198,27 @@ def continue_chat(conversation_id: str, message: str) -> None:
 
 @cli.command()
 @click.argument("conversation_id")
-@click.argument("output_file", type=click.Path())
-@click.option("-o", "--output", "output_path", type=click.Path(), help="Custom output path")
-def export(conversation_id: str, output_file: Path, output_path: Path | None) -> None:
+@click.option("-o", "--output", "output_path", type=click.Path(), help="Custom output file path")
+@click.option(
+    "--format",
+    "-f",
+    "output_format",
+    default="markdown",
+    type=click.Choice(["markdown", "json"]),
+    help="Export format (default: markdown)",
+)
+@click.option(
+    "--include-metadata",
+    is_flag=True,
+    default=False,
+    help="Include full metadata in export",
+)
+def export(
+    conversation_id: str, output_path: Path | None, output_format: str, include_metadata: bool
+) -> None:
     if not conversation_id or not conversation_id.strip():
         console.print("[bold red]Error:[/bold red] conversation_id cannot be empty.")
         sys.exit(1)
-
-    final_output_path = output_path or output_file
 
     try:
         cookies = load_cookies()
@@ -241,14 +256,36 @@ def export(conversation_id: str, output_file: Path, output_path: Path | None) ->
         console.print(f"[yellow]No messages found for conversation {conversation_id}.[/yellow]")
         return
 
-    md_content = f"# Conversation: {conversation_id}\n\n"
-    for msg in messages:
-        role = msg.get("role", "user")
-        content = msg.get("content", "")
-        md_content += f"## {role.upper()}\n\n{content}\n\n---\n\n"
+    if output_path is None:
+        date_str = datetime.now().strftime("%Y%m%d")
+        extension = "md" if output_format == "markdown" else "json"
+        default_filename = f"gemini-chat-{conversation_id}-{date_str}.{extension}"
+        output_path = Path.cwd() / default_filename
 
-    final_output_path.write_text(md_content)
-    console.print(f"[bold green]Exported to {final_output_path}[/bold green]")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if output_format == "markdown":
+        from webgemini_cli.exporter import format_chat_as_markdown
+
+        title = f"Conversation: {conversation_id}"
+        content = format_chat_as_markdown(
+            messages, title, conversation_id=conversation_id, include_metadata=include_metadata
+        )
+    else:
+        export_data = {
+            "conversation_id": conversation_id,
+            "message_count": len(messages),
+            "messages": messages,
+        }
+        if include_metadata:
+            export_data["metadata"] = {
+                "title": f"Conversation: {conversation_id}",
+                "export_date": datetime.now().isoformat(),
+            }
+        content = json.dumps(export_data, indent=2)
+
+    output_path.write_text(content)
+    console.print(f"[bold green]Exported to {output_path}[/bold green]")
 
 
 @cli.command()
@@ -291,6 +328,6 @@ def status() -> None:
         )
         sys.exit(1)
     except Exception as e:
-        console.print(f"[bold red]Status: Unknown error[/bold red]")
+        console.print("[bold red]Status: Unknown error[/bold red]")
         console.print(f"[red]{e}[/red]")
         sys.exit(1)
