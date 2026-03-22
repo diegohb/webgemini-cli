@@ -17,7 +17,8 @@ import {
   DockerContainerError,
 } from "./errors.js";
 import { checkCookieFreshness } from "./auth.js";
-import { getStorageStatePath, CONFIG_DIR_DEFAULT, getLightPandaHost, getLightPandaDocker, getBrowserType, type BrowserType } from "./config.js";
+import { getStorageStatePath, CONFIG_DIR_DEFAULT, getLightPandaHost, getLightPandaDocker, getBrowserType, getRemoteHost, type BrowserType } from "./config.js";
+import { getConfigPath, getConfigDir, loadConfig, saveConfig, getConfigValue, setConfigValue, mergeConfigWithEnv, type ResolvedConfig, type Config } from "./config-file.js";
 import { existsSync } from "fs";
 import { join } from "path";
 
@@ -35,6 +36,10 @@ function getBrowserFromFlags(cliBrowser?: string): BrowserType {
     return cliBrowser;
   }
   return getBrowserType();
+}
+
+function getResolvedConfig(cliBrowser?: string): ResolvedConfig {
+  return mergeConfigWithEnv(cliBrowser);
 }
 
 program
@@ -363,6 +368,96 @@ program
     }
   });
 
+const configCmd = program
+  .command("config")
+  .description("Manage configuration settings");
+
+configCmd
+  .command("get")
+  .description("Get a configuration value")
+  .argument("<path>", "Configuration path (e.g., browser.type)")
+  .action(async (path: string) => {
+    const value = getConfigValue(path);
+    if (value === undefined) {
+      console.error(`\x1b[31m✗ Configuration path '${path}' not found\x1b[0m`);
+      process.exit(1);
+    }
+    console.log(JSON.stringify(value, null, 2));
+  });
+
+configCmd
+  .command("set")
+  .description("Set a configuration value")
+  .argument("<path>", "Configuration path (e.g., browser.type)")
+  .argument("<value>", "Configuration value")
+  .action(async (path: string, value: string) => {
+    let parsedValue: unknown = value;
+    if (value === "true" || value === "false") {
+      parsedValue = value === "true";
+    } else if (!isNaN(Number(value))) {
+      parsedValue = Number(value);
+    }
+    setConfigValue(path, parsedValue);
+    console.log(`\x1b[32m✓ Set ${path} = ${JSON.stringify(parsedValue)}\x1b[0m`);
+  });
+
+configCmd
+  .command("list")
+  .description("List all configuration values")
+  .action(async () => {
+    const resolved = getResolvedConfig();
+    const config = loadConfig();
+    const configPath = getConfigPath();
+
+    console.log(`\x1b[1mConfiguration\x1b[0m`);
+    console.log(`  Config file: \x1b[90m${configPath}\x1b[0m`);
+    console.log();
+
+    console.log(`\x1b[1mBrowser Settings\x1b[0m`);
+    console.log(`  browser.type:`);
+    console.log(`    current:  \x1b[90m${resolved.browserType}\x1b[0m`);
+    console.log(`    source:   \x1b[90m${resolved.sources.browserType}\x1b[0m`);
+
+    console.log(`  browser.chromiumPath:`);
+    console.log(`    current:  \x1b[90m${resolved.chromiumPath ?? "(none)"}\x1b[0m`);
+    console.log(`    source:   \x1b[90m${resolved.sources.chromiumPath}\x1b[0m`);
+
+    console.log(`  browser.remoteHost:`);
+    console.log(`    current:  \x1b[90m${resolved.remoteHost ?? "(none)"}\x1b[0m`);
+    console.log(`    source:   \x1b[90m${resolved.sources.remoteHost}\x1b[0m`);
+
+    console.log();
+    console.log(`\x1b[1mConfig File Contents\x1b[0m`);
+    console.log(`\x1b[90m${JSON.stringify(config, null, 2)}\x1b[0m`);
+  });
+
+configCmd
+  .command("init")
+  .description("Initialize a default configuration file")
+  .action(async () => {
+    const configPath = getConfigPath();
+    const existingConfig = loadConfig();
+
+    if (Object.keys(existingConfig).length > 0) {
+      console.error(`\x1b[33m⚠ Config file already exists at ${configPath}\x1b[0m`);
+      console.error(`\x1b[90m  Use 'webgemini config set' to modify existing values.\x1b[0m`);
+      process.exit(1);
+    }
+
+    const resolved = getResolvedConfig();
+    const defaultConfig: Config = {
+      browser: {
+        type: resolved.browserType,
+        chromiumPath: resolved.chromiumPath,
+        remoteHost: resolved.remoteHost,
+      },
+    };
+
+    saveConfig(defaultConfig);
+    console.log(`\x1b[32m✓ Created default config at ${configPath}\x1b[0m`);
+    console.log(`\x1b[90m  Edit this file or use 'webgemini config set' to customize.\x1b[0m`);
+  });
+
 program
   .command("status")
   .description("Check authentication status")
@@ -371,12 +466,12 @@ program
       const configDir = Bun.env.WEBGEMINI_CONFIG_DIR ?? CONFIG_DIR_DEFAULT;
       const storagePath = getStorageStatePath();
       const storageExists = existsSync(storagePath);
-      const browserType = getBrowserFromFlags(options.browser);
+      const resolved = getResolvedConfig(options.browser);
 
       console.log(`\x1b[1mConfiguration Status\x1b[0m`);
       console.log(`  Config directory: \x1b[90m${configDir}\x1b[0m`);
       console.log(`  Storage file:    \x1b[90m${storagePath}\x1b[0m`);
-      console.log(`  Browser type:    \x1b[90m${browserType}\x1b[0m`);
+      console.log(`  Browser type:    \x1b[90m${resolved.browserType}\x1b[0m \x1b[90m(${resolved.sources.browserType})\x1b[0m`);
 
       if (!storageExists) {
         console.log(`\n  Authentication: \x1b[31m✗ Missing\x1b[0m`);

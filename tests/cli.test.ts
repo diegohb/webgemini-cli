@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { existsSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -517,5 +517,206 @@ describe("Config Module", () => {
     const result = getBrowserType();
     expect(result).toBe("chromium");
     Bun.env.BROWSER_TYPE = original;
+  });
+});
+
+describe("Config File Module", () => {
+  const TEST_CONFIG_DIR = join(tmpdir(), "webgemini_config_file_test");
+  const ORIGINAL_CONFIG_DIR = Bun.env.WEBGEMINI_CONFIG_DIR;
+
+  beforeEach(() => {
+    Bun.env.WEBGEMINI_CONFIG_DIR = TEST_CONFIG_DIR;
+    rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+    mkdirSync(TEST_CONFIG_DIR, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+    Bun.env.WEBGEMINI_CONFIG_DIR = ORIGINAL_CONFIG_DIR;
+  });
+
+  test("loadConfig returns empty config when no file exists", async () => {
+    const { loadConfig } = await import("../src/config-file");
+    const config = loadConfig();
+    expect(config).toEqual({});
+  });
+
+  test("loadConfig returns config from file", async () => {
+    const { loadConfig, getConfigPath } = await import("../src/config-file");
+    const configPath = getConfigPath();
+    const configData = { browser: { type: "lightpanda" as const } };
+    writeFileSync(configPath, JSON.stringify(configData));
+    const config = loadConfig();
+    expect(config.browser?.type).toBe("lightpanda");
+  });
+
+  test("saveConfig writes config to file", async () => {
+    const { saveConfig, loadConfig } = await import("../src/config-file");
+    const configData = { browser: { type: "chromium" as const, chromiumPath: "/custom/path" } };
+    saveConfig(configData);
+    const config = loadConfig();
+    expect(config.browser?.type).toBe("chromium");
+    expect(config.browser?.chromiumPath).toBe("/custom/path");
+  });
+
+  test("mergeConfigWithEnv uses CLI override", async () => {
+    const { mergeConfigWithEnv } = await import("../src/config-file");
+    const result = mergeConfigWithEnv("lightpanda");
+    expect(result.browserType).toBe("lightpanda");
+    expect(result.sources.browserType).toBe("cli");
+  });
+
+  test("mergeConfigWithEnv uses env var when no CLI", async () => {
+    const { mergeConfigWithEnv } = await import("../src/config-file");
+    const original = Bun.env.BROWSER_TYPE;
+    Bun.env.BROWSER_TYPE = "remote";
+    const result = mergeConfigWithEnv();
+    expect(result.browserType).toBe("remote");
+    expect(result.sources.browserType).toBe("env");
+    Bun.env.BROWSER_TYPE = original;
+  });
+
+  test("mergeConfigWithEnv uses config file when no env or CLI", async () => {
+    const { mergeConfigWithEnv, saveConfig } = await import("../src/config-file");
+    saveConfig({ browser: { type: "lightpanda" as const } });
+    const result = mergeConfigWithEnv();
+    expect(result.browserType).toBe("lightpanda");
+    expect(result.sources.browserType).toBe("config");
+  });
+
+  test("mergeConfigWithEnv defaults to chromium", async () => {
+    const { mergeConfigWithEnv } = await import("../src/config-file");
+    const result = mergeConfigWithEnv();
+    expect(result.browserType).toBe("chromium");
+    expect(result.sources.browserType).toBe("default");
+  });
+
+  test("getConfigValue returns nested value", async () => {
+    const { getConfigValue, saveConfig } = await import("../src/config-file");
+    saveConfig({ browser: { type: "chromium" as const } });
+    const value = getConfigValue("browser.type");
+    expect(value).toBe("chromium");
+  });
+
+  test("getConfigValue returns undefined for missing path", async () => {
+    const { getConfigValue } = await import("../src/config-file");
+    const value = getConfigValue("nonexistent.path");
+    expect(value).toBeUndefined();
+  });
+
+  test("setConfigValue sets nested value", async () => {
+    const { setConfigValue, getConfigValue } = await import("../src/config-file");
+    setConfigValue("browser.type", "lightpanda");
+    const value = getConfigValue("browser.type");
+    expect(value).toBe("lightpanda");
+  });
+
+  test("getConfigPath returns correct path", async () => {
+    const { getConfigPath } = await import("../src/config-file");
+    const configPath = getConfigPath();
+    expect(configPath).toBe(join(TEST_CONFIG_DIR, "config.json"));
+  });
+});
+
+describe("Config CLI Commands", () => {
+  const TEST_CONFIG_DIR = join(tmpdir(), "webgemini_config_cli_test");
+  const cliPath = join(process.cwd(), "src", "cli.ts");
+
+  beforeEach(() => {
+    Bun.env.WEBGEMINI_CONFIG_DIR = TEST_CONFIG_DIR;
+    rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+    mkdirSync(TEST_CONFIG_DIR, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+    delete Bun.env.WEBGEMINI_CONFIG_DIR;
+  });
+
+  test("config --help shows config commands", async () => {
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "config", "--help"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(stdout).toContain("get");
+    expect(stdout).toContain("set");
+    expect(stdout).toContain("list");
+    expect(stdout).toContain("init");
+  });
+
+  test("config list shows current configuration", async () => {
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "config", "list"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(stdout).toContain("Configuration");
+    expect(stdout).toContain("browser.type");
+    expect(stdout).toContain("browser.chromiumPath");
+    expect(stdout).toContain("browser.remoteHost");
+  });
+
+  test("config get returns value from config file", async () => {
+    const { saveConfig } = await import("../src/config-file");
+    saveConfig({ browser: { type: "lightpanda" as const } });
+
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "config", "get", "browser.type"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(stdout.trim()).toBe('"lightpanda"');
+  });
+
+  test("config set updates config file", async () => {
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "config", "set", "browser.type", "remote"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(stdout).toContain("✓");
+
+    const { getConfigValue } = await import("../src/config-file");
+    const value = getConfigValue("browser.type");
+    expect(value).toBe("remote");
+  });
+
+  test("config init creates default config", async () => {
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "config", "init"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(stdout).toContain("✓");
+    expect(proc.exitCode).toBe(0);
+  });
+
+  test("config init fails if config already exists", async () => {
+    const { saveConfig } = await import("../src/config-file");
+    saveConfig({ browser: { type: "chromium" as const } });
+
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "config", "init"],
+      env: process.env,
+    });
+
+    await proc.exited;
+    expect(proc.exitCode).toBe(1);
   });
 });

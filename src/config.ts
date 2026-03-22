@@ -1,6 +1,13 @@
 import { homedir } from "os";
 import { join } from "path";
 import { mkdirSync, existsSync } from "fs";
+import {
+  loadConfig,
+  mergeConfigWithEnv,
+  getConfigPath,
+  getConfigDir,
+  type ResolvedConfig,
+} from "./config-file.js";
 
 /** Default configuration directory path: ~/.config/webgemini-cli/ */
 export const CONFIG_DIR_DEFAULT = join(homedir(), ".config", "webgemini-cli");
@@ -65,3 +72,9 @@ export function getBrowserType(): BrowserType {
 export function getChromiumPath(): string | undefined {
   return Bun.env.CHROMIUM_PATH;
 }
+
+export function getRemoteHost(): string | undefined {
+  return Bun.env.LIGHTPANDA_HOST ?? Bun.env.REMOTE_HOST;
+}
+
+export type { ResolvedConfig } from "./config-file.js";
