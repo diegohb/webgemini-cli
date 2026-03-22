@@ -4,7 +4,7 @@ Replace Playwright/Chromium with LightPanda for browser-based authentication. Li
 
 ## Tasks
 
-- [ ] Create LightPanda browser module `src/browser.ts`:
+- [x] Create LightPanda browser module `src/browser.ts`:
   - Import `@lightpanda/browser`
   - Implement `startBrowser()` function:
     - Configure LightPanda options (host: '127.0.0.1', port: 9222)
@@ -14,13 +14,13 @@ Replace Playwright/Chromium with LightPanda for browser-based authentication. Li
     - Destroy stdout/stderr streams
     - Kill the browser process
 
-- [ ] Create Playwright CDP connection module `src/cdp-client.ts`:
+- [x] Create Playwright CDP connection module `src/cdp-client.ts`:
   - Connect Playwright to LightPanda via CDP endpoint
   - Use `chromium.connectOverCDP('http://127.0.0.1:9222')`
   - Create browser context and page
   - Handle connection errors gracefully
 
-- [ ] Create auth module `src/auth.ts`:
+- [x] Create auth module `src/auth.ts`:
   - Implement `login()` async function:
     - Start LightPanda browser
     - Connect Playwright via CDP
@@ -39,7 +39,7 @@ Replace Playwright/Chromium with LightPanda for browser-based authentication. Li
     - Check `__Secure-1PSIDTS` expiration date
     - Return false if within 7 days of expiry
 
-- [ ] Create cookie storage module `src/cookie-store.ts`:
+- [x] Create cookie storage module `src/cookie-store.ts`:
   - Implement `saveCookies(cookies: GeminiCookie[]): Promise<void>`
     - Write cookies to storage_state.json in Playwright format
     - Use `Bun.write()` for file operations
@@ -48,7 +48,7 @@ Replace Playwright/Chromium with LightPanda for browser-based authentication. Li
     - Throw `AuthenticationError` if file missing
     - Throw `CookieExpiredError` if cookies stale
 
-- [ ] Port auth CLI command in `src/cli.ts`:
+- [x] Port auth CLI command in `src/cli.ts`:
   - Import auth module
   - Implement `auth` command:
     - Call `login()` function
@@ -56,7 +56,7 @@ Replace Playwright/Chromium with LightPanda for browser-based authentication. Li
     - Handle and display errors with Rich-like styling
     - Use console colors (use `console.style` or a simple library)
 
-- [ ] Add auth command error handling:
+- [x] Add auth command error handling:
   - Catch browser startup failures
   - Catch CDP connection errors
   - Catch timeout errors (user took too long to login)
