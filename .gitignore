@@ -23,3 +23,5 @@ Thumbs.db
 # Bun/Node
 node_modules/
 bun.lock
+bun.lockb
+dist/
