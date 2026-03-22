@@ -5,6 +5,7 @@ from pathlib import Path
 
 import click
 from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
 
 from webgemini_cli.auth_manager import load_cookies, login
@@ -286,6 +287,148 @@ def export(
 
     output_path.write_text(content)
     console.print(f"[bold green]Exported to {output_path}[/bold green]")
+
+
+@cli.command()
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    default=None,
+    help="Directory to export conversations to (default: ./exports)",
+)
+@click.option(
+    "--since",
+    type=str,
+    default=None,
+    help="Export only conversations newer than this ISO date (e.g., 2024-01-01)",
+)
+@click.option(
+    "--include-metadata",
+    is_flag=True,
+    default=False,
+    help="Include full metadata in each export",
+)
+def export_all(output_dir: Path | None, since: str | None, include_metadata: bool) -> None:
+    if output_dir is None:
+        output_dir = Path.cwd() / "exports"
+
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    try:
+        cookies = load_cookies()
+    except CookieExpiredError as e:
+        console.print(f"[bold red]Session expired:[/bold red] {e}")
+        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        sys.exit(2)
+    except AuthenticationError as e:
+        console.print(f"[bold red]Not authenticated:[/bold red] {e}")
+        console.print("[bold yellow]Run 'webgemini auth' to authenticate.[/bold yellow]")
+        sys.exit(2)
+
+    try:
+        client = GeminiClient(cookies)
+        all_chats = client.list_chats()
+    except CookieExpiredError as e:
+        console.print(f"[bold red]Session expired:[/bold red] {e}")
+        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        sys.exit(2)
+    except AuthenticationError as e:
+        console.print(f"[bold red]Authentication error:[/bold red] {e}")
+        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        sys.exit(2)
+    except GeminiAPIError as e:
+        console.print(f"[bold red]API error:[/bold red] {e}")
+        sys.exit(1)
+
+    if not all_chats:
+        console.print("[yellow]No chats found.[/yellow]")
+        return
+
+    if since:
+        try:
+            datetime.fromisoformat(since)
+        except ValueError:
+            console.print(
+                "[bold red]Error:[/bold red] Invalid date format for --since. Use ISO format (e.g., 2024-01-01)."
+            )
+            sys.exit(1)
+
+    from webgemini_cli.exporter import format_chat_as_markdown
+
+    exported_chats: list[dict[str, str]] = []
+    failed_chats: list[tuple[str, str]] = []
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    ) as progress:
+        export_task = progress.add_task("[cyan]Exporting conversations...", total=len(all_chats))
+
+        for chat in all_chats:
+            conversation_id = chat["id"]
+            title = chat["title"]
+
+            progress.update(export_task, description=f"[cyan]Exporting: {title[:30]}...")
+
+            try:
+                messages = client.fetch_chat(conversation_id)
+                if not messages:
+                    progress.advance(export_task)
+                    continue
+
+                safe_title = "".join(c if c.isalnum() or c in " -_" else "_" for c in title)[:50]
+                date_str = datetime.now().strftime("%Y%m%d")
+                filename = f"gemini-chat-{conversation_id}-{safe_title[:20]}-{date_str}.md"
+                filepath = output_path / filename
+
+                content = format_chat_as_markdown(
+                    messages,
+                    title,
+                    conversation_id=conversation_id,
+                    include_metadata=include_metadata,
+                )
+                filepath.write_text(content)
+
+                exported_chats.append(
+                    {
+                        "id": conversation_id,
+                        "title": title,
+                        "filename": filename,
+                    }
+                )
+            except Exception as e:
+                failed_chats.append((conversation_id, str(e)))
+
+            progress.advance(export_task)
+
+    if exported_chats:
+        index_path = output_path / "_index.md"
+        index_lines = ["# Exported Conversations\n"]
+        index_lines.append(f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        index_lines.append(f"Total: {len(exported_chats)} conversations\n")
+        index_lines.append("---\n\n")
+
+        for chat in sorted(exported_chats, key=lambda c: c["title"].lower()):
+            index_lines.append(f"- [{chat['title']}]({chat['filename']}) (ID: {chat['id']})")
+
+        index_path.write_text("\n".join(index_lines))
+        console.print(f"[bold green]Created index: {index_path}[/bold green]")
+
+    console.print(
+        f"[bold green]Exported {len(exported_chats)} conversations to {output_path}[/bold green]"
+    )
+
+    if failed_chats:
+        console.print(
+            f"[bold yellow]Failed to export {len(failed_chats)} conversations:[/bold yellow]"
+        )
+        for cid, err in failed_chats:
+            console.print(f"  - {cid}: {err}")
 
 
 @cli.command()
