@@ -6,6 +6,7 @@ import {
   AuthenticationError,
   CookieExpiredError,
   LightPandaNotFoundError,
+  ChromiumNotFoundError,
   PortInUseError,
   BrowserClosedError,
   BrowserConnectionError,
@@ -16,7 +17,9 @@ import {
   DockerContainerError,
 } from "./errors.js";
 import { checkCookieFreshness } from "./auth.js";
-import { getStorageStatePath, CONFIG_DIR_DEFAULT, getLightPandaHost, getLightPandaDocker } from "./config.js";
+import { getStorageStatePath, CONFIG_DIR_DEFAULT, getLightPandaHost, getLightPandaDocker, getBrowserType, getRemoteHost, getBrowserFallback, type BrowserType } from "./config.js";
+import { getConfigPath, getConfigDir, loadConfig, saveConfig, getConfigValue, setConfigValue, mergeConfigWithEnv, type ResolvedConfig, type Config } from "./config-file.js";
+import { setBrowserVerbose, setDebugBrowser } from "./browser.js";
 import { existsSync } from "fs";
 import { join } from "path";
 
@@ -25,8 +28,45 @@ let verbose = false;
 
 function logVerbose(...args: unknown[]): void {
   if (verbose) {
-    console.error("[VERBOSE]", ...args);
+    const timestamp = new Date().toISOString().slice(11, 23);
+    console.error(`[VERBOSE ${timestamp}]`, ...args);
   }
+}
+
+function getBrowserColor(browserType: BrowserType): string {
+  switch (browserType) {
+    case "chromium":
+      return "\x1b[32m";
+    case "lightpanda":
+      return "\x1b[36m";
+    case "remote":
+      return "\x1b[35m";
+    default:
+      return "\x1b[90m";
+  }
+}
+
+function logBrowserStart(browserType: BrowserType, remoteHost?: string): void {
+  const color = getBrowserColor(browserType);
+  const reset = "\x1b[0m";
+  const browserName = `${color}${browserType.toUpperCase()}${reset}`;
+  
+  if (remoteHost) {
+    console.log(`  Starting ${browserName} browser (remote: ${remoteHost})...`);
+  } else {
+    console.log(`  Starting ${browserName} browser...`);
+  }
+}
+
+function getBrowserFromFlags(cliBrowser?: string): BrowserType {
+  if (cliBrowser === "chromium" || cliBrowser === "lightpanda" || cliBrowser === "remote") {
+    return cliBrowser;
+  }
+  return getBrowserType();
+}
+
+function getResolvedConfig(cliBrowser?: string): ResolvedConfig {
+  return mergeConfigWithEnv(cliBrowser);
 }
 
 program
@@ -34,33 +74,75 @@ program
   .description("CLI for Gemini web interactions")
   .version("0.2.0")
   .option("-v, --verbose", "Enable verbose output")
+  .option("-b, --browser <type>", "Browser type (chromium|lightpanda|remote)")
+  .option("--debug-browser", "Enable detailed browser debugging")
   .hook("preAction", (thisCommand) => {
     verbose = thisCommand.opts().verbose === true;
+    const debugBrowser = thisCommand.opts().debugBrowser === true;
+    setBrowserVerbose(verbose);
+    setDebugBrowser(debugBrowser);
   });
 
 program
   .command("auth")
   .description("Authenticate with Gemini")
-  .option("--lightpanda-host <ws://host:port>", "Connect to remote LightPanda browser")
-  .option("--lightpanda-docker", "Use Docker LightPanda (auto-provision if needed)")
-  .action(async (options: { lightpandaHost?: string; lightpandaDocker?: boolean }) => {
+  .option("--lightpanda-host <ws://host:port>", "Connect to remote LightPanda browser (deprecated, use --browser remote --remote-host)")
+  .option("--lightpanda-docker", "Use Docker LightPanda (auto-provision if needed) (deprecated, use --browser lightpanda)")
+  .option("--remote-host <ws://host:port>", "Remote browser WebSocket URL (required when --browser remote is used)")
+  .action(async (options: { browser?: string; lightpandaHost?: string; lightpandaDocker?: boolean; remoteHost?: string }) => {
     try {
       logVerbose("Starting browser authentication...");
-      console.log("Starting browser authentication...");
-      
-      let remoteHost: string | undefined;
-      
+      console.log("\x1b[1mStarting browser authentication...\x1b[0m");
+
       if (options.lightpandaHost) {
-        remoteHost = options.lightpandaHost;
-      } else if (options.lightpandaDocker || getLightPandaDocker()) {
-        const { ensureLightPandaRunning } = await import("./docker.js");
-        remoteHost = await ensureLightPandaRunning();
-        console.log(`\x1b[90m  Auto-provisioning Docker LightPanda...\x1b[0m`);
-      } else {
-        remoteHost = getLightPandaHost();
+        console.log(`\x1b[33m  Warning: --lightpanda-host is deprecated. Use --browser remote --remote-host <url>\x1b[0m`);
       }
-      
-      const cookies = await login(remoteHost);
+      if (options.lightpandaDocker) {
+        console.log(`\x1b[33m  Warning: --lightpanda-docker is deprecated. Use --browser lightpanda\x1b[0m`);
+      }
+
+      const browserType = getBrowserFromFlags(options.browser);
+      let remoteHost: string | undefined;
+
+      if (browserType === "remote") {
+        if (options.remoteHost) {
+          remoteHost = options.remoteHost;
+        } else if (options.lightpandaHost) {
+          remoteHost = options.lightpandaHost;
+        } else {
+          console.error(`\x1b[31m✗ Error:\x1b[0m --browser remote requires --remote-host <ws://host:port>`);
+          process.exit(1);
+        }
+      } else if (browserType === "lightpanda") {
+        if (options.lightpandaDocker || getLightPandaDocker()) {
+          const fallbackEnabled = getBrowserFallback();
+          try {
+            const { ensureLightPandaRunning } = await import("./docker.js");
+            remoteHost = await ensureLightPandaRunning();
+            console.log(`\x1b[90m  Auto-provisioning Docker LightPanda...\x1b[0m`);
+          } catch (dockerError) {
+            if (fallbackEnabled) {
+              console.log(`\x1b[33m  LightPanda Docker failed: ${dockerError instanceof Error ? dockerError.message : String(dockerError)}\x1b[0m`);
+              console.log(`\x1b[90m  Falling back to Chromium...\x1b[0m`);
+              logVerbose("LightPanda Docker failed, using Chromium as fallback browser");
+              remoteHost = undefined;
+            } else {
+              console.error(`\x1b[31m✗ LightPanda Docker failed:\x1b[0m ${dockerError instanceof Error ? dockerError.message : String(dockerError)}`);
+              throw dockerError;
+            }
+          }
+        } else {
+          remoteHost = getLightPandaHost();
+        }
+      }
+
+      logVerbose(`Using browser type: ${browserType}`);
+      if (remoteHost) {
+        logVerbose(`Remote host: ${remoteHost}`);
+      }
+
+      logBrowserStart(browserType, remoteHost);
+      const cookies = await login(browserType, remoteHost);
       logVerbose(`Authentication successful, saved ${cookies.length} cookies`);
       console.log(`\x1b[32m✓ Authentication successful!\x1b[0m`);
       console.log(`\x1b[90m  Saved ${cookies.length} cookies.\x1b[0m`);
@@ -331,18 +413,111 @@ program
     }
   });
 
+const configCmd = program
+  .command("config")
+  .description("Manage configuration settings");
+
+configCmd
+  .command("get")
+  .description("Get a configuration value")
+  .argument("<path>", "Configuration path (e.g., browser.type)")
+  .action(async (path: string) => {
+    const value = getConfigValue(path);
+    if (value === undefined) {
+      console.error(`\x1b[31m✗ Configuration path '${path}' not found\x1b[0m`);
+      process.exit(1);
+    }
+    console.log(JSON.stringify(value, null, 2));
+  });
+
+configCmd
+  .command("set")
+  .description("Set a configuration value")
+  .argument("<path>", "Configuration path (e.g., browser.type)")
+  .argument("<value>", "Configuration value")
+  .action(async (path: string, value: string) => {
+    let parsedValue: unknown = value;
+    if (value === "true" || value === "false") {
+      parsedValue = value === "true";
+    } else if (!isNaN(Number(value))) {
+      parsedValue = Number(value);
+    }
+    setConfigValue(path, parsedValue);
+    console.log(`\x1b[32m✓ Set ${path} = ${JSON.stringify(parsedValue)}\x1b[0m`);
+  });
+
+configCmd
+  .command("list")
+  .description("List all configuration values")
+  .action(async () => {
+    const resolved = getResolvedConfig();
+    const config = loadConfig();
+    const configPath = getConfigPath();
+
+    console.log(`\x1b[1mConfiguration\x1b[0m`);
+    console.log(`  Config file: \x1b[90m${configPath}\x1b[0m`);
+    console.log();
+
+    console.log(`\x1b[1mBrowser Settings\x1b[0m`);
+    console.log(`  browser.type:`);
+    console.log(`    current:  \x1b[90m${resolved.browserType}\x1b[0m`);
+    console.log(`    source:   \x1b[90m${resolved.sources.browserType}\x1b[0m`);
+
+    console.log(`  browser.chromiumPath:`);
+    console.log(`    current:  \x1b[90m${resolved.chromiumPath ?? "(none)"}\x1b[0m`);
+    console.log(`    source:   \x1b[90m${resolved.sources.chromiumPath}\x1b[0m`);
+
+    console.log(`  browser.remoteHost:`);
+    console.log(`    current:  \x1b[90m${resolved.remoteHost ?? "(none)"}\x1b[0m`);
+    console.log(`    source:   \x1b[90m${resolved.sources.remoteHost}\x1b[0m`);
+
+    console.log();
+    console.log(`\x1b[1mConfig File Contents\x1b[0m`);
+    console.log(`\x1b[90m${JSON.stringify(config, null, 2)}\x1b[0m`);
+  });
+
+configCmd
+  .command("init")
+  .description("Initialize a default configuration file")
+  .action(async () => {
+    const configPath = getConfigPath();
+    const existingConfig = loadConfig();
+
+    if (Object.keys(existingConfig).length > 0) {
+      console.error(`\x1b[33m⚠ Config file already exists at ${configPath}\x1b[0m`);
+      console.error(`\x1b[90m  Use 'webgemini config set' to modify existing values.\x1b[0m`);
+      process.exit(1);
+    }
+
+    const resolved = getResolvedConfig();
+    const defaultConfig: Config = {
+      browser: {
+        type: resolved.browserType,
+        chromiumPath: resolved.chromiumPath,
+        remoteHost: resolved.remoteHost,
+      },
+    };
+
+    saveConfig(defaultConfig);
+    console.log(`\x1b[32m✓ Created default config at ${configPath}\x1b[0m`);
+    console.log(`\x1b[90m  Edit this file or use 'webgemini config set' to customize.\x1b[0m`);
+  });
+
 program
   .command("status")
   .description("Check authentication status")
-  .action(async () => {
+  .action(async (options: { browser?: string }) => {
     try {
       const configDir = Bun.env.WEBGEMINI_CONFIG_DIR ?? CONFIG_DIR_DEFAULT;
       const storagePath = getStorageStatePath();
       const storageExists = existsSync(storagePath);
+      const resolved = getResolvedConfig(options.browser);
 
+      const browserColor = getBrowserColor(resolved.browserType);
       console.log(`\x1b[1mConfiguration Status\x1b[0m`);
       console.log(`  Config directory: \x1b[90m${configDir}\x1b[0m`);
       console.log(`  Storage file:    \x1b[90m${storagePath}\x1b[0m`);
+      console.log(`  Browser type:    ${browserColor}${resolved.browserType}\x1b[0m \x1b[90m(${resolved.sources.browserType})\x1b[0m`);
 
       if (!storageExists) {
         console.log(`\n  Authentication: \x1b[31m✗ Missing\x1b[0m`);
@@ -387,6 +562,13 @@ program
 function handleAuthError(error: unknown): void {
   if (error instanceof LightPandaNotFoundError) {
     console.error(`\x1b[31m✗ LightPanda not found:\x1b[0m ${error.message}`);
+    console.error(`\x1b[90m  Try using Chromium instead: --browser chromium\x1b[0m`);
+    console.error(`\x1b[90m  Or set BROWSER_FALLBACK=false to disable automatic fallback.\x1b[0m`);
+    process.exit(1);
+  }
+  if (error instanceof ChromiumNotFoundError) {
+    console.error(`\x1b[31m✗ Chromium not found:\x1b[0m ${error.message}`);
+    console.error(`\x1b[90m  Set CHROMIUM_PATH environment variable to specify a custom location.\x1b[0m`);
     process.exit(1);
   }
   if (error instanceof PortInUseError) {
@@ -399,17 +581,20 @@ function handleAuthError(error: unknown): void {
   }
   if (error instanceof BrowserConnectionError) {
     console.error(`\x1b[31m✗ Connection failed:\x1b[0m ${error.message}`);
-    console.error(`\x1b[90m  Note: Docker LightPanda is experimental and may have CDP compatibility issues.\x1b[0m`);
-    console.error(`\x1b[90m  Use --lightpanda-host to connect to a working remote LightPanda instance.\x1b[0m`);
+    console.error(`\x1b[90m  Use --browser remote --remote-host <ws://host:port> to connect to a remote browser.\x1b[0m`);
+    console.error(`\x1b[90m  Or try using Chromium instead: --browser chromium\x1b[0m`);
     process.exit(1);
   }
   if (error instanceof DockerNotAvailableError) {
     console.error(`\x1b[31m✗ Docker not available:\x1b[0m ${error.message}`);
     console.error(`\x1b[90m  Install Docker from https://docs.docker.com/get-docker/\x1b[0m`);
+    console.error(`\x1b[90m  Or try using Chromium instead: --browser chromium\x1b[0m`);
     process.exit(1);
   }
   if (error instanceof DockerContainerError) {
     console.error(`\x1b[31m✗ Docker container error:\x1b[0m ${error.message}`);
+    console.error(`\x1b[90m  Try using Chromium instead: --browser chromium\x1b[0m`);
+    console.error(`\x1b[90m  Or set BROWSER_FALLBACK=false to disable automatic fallback.\x1b[0m`);
     process.exit(1);
   }
   if (error instanceof AuthenticationError) {
@@ -423,10 +608,12 @@ function handleAuthError(error: unknown): void {
   if (error instanceof Error) {
     if (error.message.includes("ENOENT") || error.message.includes("not found")) {
       console.error(`\x1b[31m✗ LightPanda not found:\x1b[0m Please ensure LightPanda is installed. Run 'npm install -g @lightpanda/browser' or visit https://lightpanda.dev`);
+      console.error(`\x1b[90m  Or try using Chromium instead: --browser chromium\x1b[0m`);
       process.exit(1);
     }
     if (error.message.includes("ECONNREFUSED")) {
       console.error(`\x1b[31m✗ Connection failed:\x1b[0m Could not connect to LightPanda. Port may be in use.`);
+      console.error(`\x1b[90m  Try using Chromium instead: --browser chromium\x1b[0m`);
       process.exit(1);
     }
     console.error(`\x1b[31m✗ Error:\x1b[0m ${error.message}`);

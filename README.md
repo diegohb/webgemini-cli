@@ -288,8 +288,78 @@ The storage file (`storage_state.json`) contains your authentication cookies. It
 | `WEBGEMINI_CONFIG_DIR` | Configuration directory | `~/.config/webgemini-cli/` |
 | `WEBGEMINI_VERBOSE` | Enable verbose logging | `false` |
 | `PYTHON_WRAPPER_PATH` | Path to Python wrapper script | `<project>/python/wrapper.py` |
-| `LIGHTPANDA_HOST` | Remote LightPanda CDP URL | none |
+| `BROWSER_TYPE` | Browser to use (`chromium`, `lightpanda`, `remote`) | `chromium` |
+| `CHROMIUM_PATH` | Custom Chromium executable path | none |
+| `LIGHTPANDA_HOST` | Remote LightPanda WebSocket URL | none |
 | `LIGHTPANDA_DOCKER` | Auto-provision Docker container | `false` |
+| `REMOTE_HOST` | Remote browser WebSocket URL (alternative to LIGHTPANDA_HOST) | none |
+| `BROWSER_FALLBACK` | Fall back to Chromium if selected browser fails | `true` |
+
+### Browser Configuration
+
+The CLI supports multiple browser types with flexible configuration:
+
+#### Browser Types
+
+| Type | Description |
+|------|-------------|
+| `chromium` | Use Chromium (system-installed or Chromium-based browser) |
+| `lightpanda` | Use LightPanda browser (default) |
+| `remote` | Connect to a remote browser via WebSocket |
+
+#### CLI Flag
+
+```bash
+# Use Chromium
+webgemini auth --browser chromium
+
+# Use LightPanda
+webgemini auth --browser lightpanda
+
+# Use remote browser
+webgemini auth --browser remote --remote-host ws://localhost:9222
+```
+
+#### Environment Variables
+
+```bash
+# Set browser type
+export BROWSER_TYPE=chromium
+
+# Set custom Chromium path
+export CHROMIUM_PATH=/path/to/chromium
+
+# Set remote browser
+export LIGHTPANDA_HOST=ws://localhost:9222
+
+# Disable fallback to Chromium on failure
+export BROWSER_FALLBACK=false
+```
+
+#### Config File
+
+Create `~/.config/webgemini-cli/config.json` or `~/.config/webgemini-cli/.webgeminirc`:
+
+```json
+{
+  "browser": {
+    "type": "chromium",
+    "chromiumPath": "/custom/path/to/chromium",
+    "remoteHost": "ws://localhost:9222"
+  }
+}
+```
+
+#### Precedence
+
+Configuration values are resolved in this order (highest to lowest):
+
+1. **CLI flags** (e.g., `--browser chromium`)
+2. **Environment variables** (e.g., `BROWSER_TYPE=chromium`)
+3. **Config file** (e.g., `~/.config/webgemini-cli/config.json`)
+4. **Default values** (chromium, no custom path)
+
+Example: If `BROWSER_TYPE=lightpanda` is set in the environment but `--browser chromium` is passed via CLI, the CLI value takes precedence.
 
 ## Python Wrapper
 
@@ -349,6 +419,70 @@ If browser automation fails or is unavailable, you can manually extract cookies 
        {"name": "__Secure-1PSIDTS", "value": "your_value_here", ...}
      ]
    }
+   ```
+
+### Chromium Not Found
+
+If you see "Chromium not found" errors:
+
+1. Install Chromium or use an existing installation:
+   ```bash
+   # On macOS with Homebrew
+   brew install chromium
+
+   # On Ubuntu/Debian
+   sudo apt install chromium
+   ```
+
+2. Or specify a custom Chromium path:
+   ```bash
+   export CHROMIUM_PATH=/path/to/your/chromium
+   webgemini auth --browser chromium
+   ```
+
+### Remote Browser Connection Failed
+
+If you see "Remote browser connection failed" errors:
+
+1. Ensure the remote browser is running and accessible:
+   ```bash
+   # Check if remote browser is reachable
+   curl -I http://localhost:9222
+   ```
+
+2. Verify the WebSocket URL is correct:
+   ```bash
+   webgemini auth --browser remote --remote-host ws://localhost:9222
+   ```
+
+3. For Docker-based remote browsers, ensure the container is running:
+   ```bash
+   docker ps | grep lightpanda
+   docker logs lightpanda
+   ```
+
+### Wrong Browser Type
+
+If the wrong browser is being used:
+
+1. Check current configuration:
+   ```bash
+   webgemini status
+   ```
+
+2. Override with CLI flag (takes highest precedence):
+   ```bash
+   webgemini auth --browser chromium
+   ```
+
+3. Or set environment variable:
+   ```bash
+   export BROWSER_TYPE=chromium
+   ```
+
+4. Check config file if CLI/env not set:
+   ```bash
+   cat ~/.config/webgemini-cli/config.json
    ```
 
 ### Session Expired
