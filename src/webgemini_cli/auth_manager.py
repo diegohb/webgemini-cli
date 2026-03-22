@@ -71,7 +71,7 @@ def load_cookies() -> dict:
         raise CookieExpiredError(
             "Session appears to be expired. Please run 'webgemini auth' to re-authenticate."
         )
-    return cookies
+    return {c["name"]: c["value"] for c in cookies.get("cookies", [])}
 
 
 async def refresh_cookies() -> dict:
