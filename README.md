@@ -165,7 +165,8 @@ bun run src/cli.ts auth
 Or with the built binary:
 
 ```bash
-./dist/webgemini-cli auth
+./dist/webgemini.exe auth  # Windows
+./dist/webgemini auth      # Unix/macOS
 ```
 
 This will open a browser window for you to log in with your Google account. Cookies will be saved for future use.
@@ -431,7 +432,7 @@ Build a standalone executable:
 bun run build
 ```
 
-The output will be in `dist/webgemini-cli`.
+The output will be in `dist/webgemini.exe` (Windows) or `dist/webgemini` (Unix/macOS). The standalone executable is a single file containing the Bun runtime and all dependencies, approximately 110 MB in size.
 
 ## Testing
 

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bun run --watch src/cli.ts",
     "start": "bun run src/cli.ts",
-    "build": "bun build ./src/cli.ts --outdir ./dist --compile",
+    "build": "bun build ./src/cli.ts --outfile ./dist/webgemini.exe --compile -e playwright -e playwright-core -e chromium-bidi -e electron",
     "test": "bun test"
   },
   "devDependencies": {

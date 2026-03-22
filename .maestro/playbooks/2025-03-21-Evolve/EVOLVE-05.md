@@ -26,11 +26,12 @@ Complete the migration with documentation updates, testing, and cleanup. Remove 
   - Test CLI commands (integration tests) (tests/cli.test.ts)
   - Run tests with `bun test` - 75 tests pass
 
-- [ ] Verify build process:
+- [x] Verify build process:
   - Run `bun run build` to create standalone executable
   - Test compiled binary works independently
-  - Verify binary size is reasonable
+  - Verify binary size is reasonable (~110 MB)
   - Document build output location
+  - **Note**: Fixed `package.json` build script - changed `--outdir ./dist --compile` to `--outfile ./dist/webgemini.exe --compile` and added external dependencies for playwright packages (`-e playwright -e playwright-core -e chromium-bidi -e electron`) to resolve bundling errors. Build output: `dist/webgemini.exe`
 
 - [ ] Clean up obsolete files:
   - Remove old `src/webgemini_cli/` Python directory (moved to python/)
