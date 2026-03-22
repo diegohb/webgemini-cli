@@ -6,6 +6,7 @@ import {
   AuthenticationError,
   CookieExpiredError,
   LightPandaNotFoundError,
+  ChromiumNotFoundError,
   PortInUseError,
   BrowserClosedError,
   BrowserConnectionError,
@@ -387,6 +388,11 @@ program
 function handleAuthError(error: unknown): void {
   if (error instanceof LightPandaNotFoundError) {
     console.error(`\x1b[31m✗ LightPanda not found:\x1b[0m ${error.message}`);
+    process.exit(1);
+  }
+  if (error instanceof ChromiumNotFoundError) {
+    console.error(`\x1b[31m✗ Chromium not found:\x1b[0m ${error.message}`);
+    console.error(`\x1b[90m  Set CHROMIUM_PATH environment variable to specify a custom location.\x1b[0m`);
     process.exit(1);
   }
   if (error instanceof PortInUseError) {
