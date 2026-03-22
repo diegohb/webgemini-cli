@@ -1,0 +1,32 @@
+{
+  "conversation_id": "sample_conversation_456",
+  "title": "API Design Discussion",
+  "export_date": "2026-03-21T15:00:00",
+  "metadata": {
+    "message_count": 4,
+    "first_message": "2026-03-21T14:45:00",
+    "last_message": "2026-03-21T15:00:00"
+  },
+  "messages": [
+    {
+      "role": "user",
+      "content": "What are the best practices for designing a REST API?",
+      "timestamp": "2026-03-21T14:45:00"
+    },
+    {
+      "role": "model",
+      "content": "Here are the key REST API best practices:\n\n## 1. Use Proper HTTP Methods\n\n| Method | Usage |\n|--------|-------|\n| GET | Retrieve resources |\n| POST | Create new resources |\n| PUT | Update entire resources |\n| PATCH | Partial updates |\n| DELETE | Remove resources |\n\n## 2. Use Nouns for Endpoints\n\n```\n# Good\nGET /users\nGET /users/123\n\n# Avoid\nGET /getUsers\nGET /user/123\n```\n\n## 3. Use Proper Status Codes\n\n- 200 OK - Success\n- 201 Created - Resource created\n- 400 Bad Request - Invalid input\n- 401 Unauthorized - Not authenticated\n- 404 Not Found - Resource doesn't exist\n- 500 Internal Server Error - Server issue",
+      "timestamp": "2026-03-21T14:46:30"
+    },
+    {
+      "role": "user",
+      "content": "How should we handle pagination?",
+      "timestamp": "2026-03-21T14:50:00"
+    },
+    {
+      "role": "model",
+      "content": "For pagination, I recommend cursor-based pagination for large datasets:\n\n```json\n{\n  \"data\": [...],\n  \"pagination\": {\n    \"next_cursor\": \"eyJpZCI6MTIzfQ==\",\n    \"has_more\": true,\n    \"total_count\": 1042\n  }\n}\n```\n\n## Comparison\n\n| Type | Pros | Cons |\n|------|------|------|\n| Offset | Simple, random access | Performance issues at scale |\n| Cursor | Efficient, consistent | No random access |\n| Page | Familiar to users | Inflexible |\n\nUse cursor-based pagination when:\n- Dealing with large datasets (millions of rows)\n- Real-time data where offset skips items\n- Infinite scroll interfaces\n\nUse offset pagination when:\n- Small datasets\n- User needs to jump to specific pages\n- Analytics or reporting use cases",
+      "timestamp": "2026-03-21T15:00:00"
+    }
+  ]
+}

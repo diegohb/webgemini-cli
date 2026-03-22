@@ -38,7 +38,7 @@ Implement polished Markdown export functionality and comprehensive documentation
   - Add architecture diagram (text-based) showing component relationships
   - Document the auth flow: Playwright → cookies → python-gemini-api
 
-- [ ] Document future enhancement roadmap:
+- [x] Document future enhancement roadmap:
   - Create `docs/ROADMAP.md` with planned features:
     - **Interactive CLI Mode**: Menu-driven interface for browsing chats
     - **REPL Mode**: Continuous chat session with conversation history
@@ -47,7 +47,7 @@ Implement polished Markdown export functionality and comprehensive documentation
     - **Multi-account**: Support multiple Google accounts with profiles
   - Include estimated complexity and dependencies for each
 
-- [ ] Create developer documentation:
+- [x] Create developer documentation:
   - Add `docs/DEVELOPMENT.md` with:
     - Project structure explanation
     - How to set up development environment
@@ -56,13 +56,13 @@ Implement polished Markdown export functionality and comprehensive documentation
   - Document the cookie format expected by python-gemini-api
   - Document the GeminiModelOutput parsing approach
 
-- [ ] Add example outputs:
+- [x] Add example outputs:
   - Create `examples/` directory
   - Add sample exported Markdown file showing output format
   - Add sample JSON export for comparison
   - Add screenshots of CLI output (as text files) for documentation
 
-- [ ] Create usage examples script:
+- [x] Create usage examples script:
   - Add `examples/usage_examples.sh` with commented command sequences
   - Cover common workflows: first-time setup, daily usage, export for backup
   - Include error scenarios and expected outputs
