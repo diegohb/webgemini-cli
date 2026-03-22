@@ -28,7 +28,33 @@ let verbose = false;
 
 function logVerbose(...args: unknown[]): void {
   if (verbose) {
-    console.error("[VERBOSE]", ...args);
+    const timestamp = new Date().toISOString().slice(11, 23);
+    console.error(`[VERBOSE ${timestamp}]`, ...args);
+  }
+}
+
+function getBrowserColor(browserType: BrowserType): string {
+  switch (browserType) {
+    case "chromium":
+      return "\x1b[32m";
+    case "lightpanda":
+      return "\x1b[36m";
+    case "remote":
+      return "\x1b[35m";
+    default:
+      return "\x1b[90m";
+  }
+}
+
+function logBrowserStart(browserType: BrowserType, remoteHost?: string): void {
+  const color = getBrowserColor(browserType);
+  const reset = "\x1b[0m";
+  const browserName = `${color}${browserType.toUpperCase()}${reset}`;
+  
+  if (remoteHost) {
+    console.log(`  Starting ${browserName} browser (remote: ${remoteHost})...`);
+  } else {
+    console.log(`  Starting ${browserName} browser...`);
   }
 }
 
@@ -66,7 +92,7 @@ program
   .action(async (options: { browser?: string; lightpandaHost?: string; lightpandaDocker?: boolean; remoteHost?: string }) => {
     try {
       logVerbose("Starting browser authentication...");
-      console.log("Starting browser authentication...");
+      console.log("\x1b[1mStarting browser authentication...\x1b[0m");
 
       if (options.lightpandaHost) {
         console.log(`\x1b[33m  Warning: --lightpanda-host is deprecated. Use --browser remote --remote-host <url>\x1b[0m`);
@@ -115,6 +141,7 @@ program
         logVerbose(`Remote host: ${remoteHost}`);
       }
 
+      logBrowserStart(browserType, remoteHost);
       const cookies = await login(browserType, remoteHost);
       logVerbose(`Authentication successful, saved ${cookies.length} cookies`);
       console.log(`\x1b[32m✓ Authentication successful!\x1b[0m`);
@@ -486,10 +513,11 @@ program
       const storageExists = existsSync(storagePath);
       const resolved = getResolvedConfig(options.browser);
 
+      const browserColor = getBrowserColor(resolved.browserType);
       console.log(`\x1b[1mConfiguration Status\x1b[0m`);
       console.log(`  Config directory: \x1b[90m${configDir}\x1b[0m`);
       console.log(`  Storage file:    \x1b[90m${storagePath}\x1b[0m`);
-      console.log(`  Browser type:    \x1b[90m${resolved.browserType}\x1b[0m \x1b[90m(${resolved.sources.browserType})\x1b[0m`);
+      console.log(`  Browser type:    ${browserColor}${resolved.browserType}\x1b[0m \x1b[90m(${resolved.sources.browserType})\x1b[0m`);
 
       if (!storageExists) {
         console.log(`\n  Authentication: \x1b[31m✗ Missing\x1b[0m`);
