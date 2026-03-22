@@ -3,6 +3,7 @@ import { chromium, type Browser as PlaywrightBrowser } from "playwright";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import type { Readable } from "node:stream";
 import { LightPandaNotFoundError, PortInUseError, BrowserConnectionError, ChromiumNotFoundError } from "./errors.js";
+import { getBrowserType, getChromiumPath, getLightPandaHost } from "./config.js";
 
 export interface LightPandaOptions {
   host: string;
@@ -105,7 +106,7 @@ function isPortInUseError(error: unknown): boolean {
   return false;
 }
 
-export async function startBrowser(
+export async function startLightPanda(
   options: Partial<LightPandaOptions> = {}
 ): Promise<BrowserProcess> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
@@ -150,6 +151,32 @@ export async function startBrowser(
     opts.port,
     `Port ${opts.port} is already in use. Tried alternate ports ${PORT_RANGE_START}-${PORT_RANGE_END} without success.`
   );
+}
+
+export async function startBrowser(): Promise<BrowserProcess> {
+  const browserType = getBrowserType();
+
+  if (browserType === "chromium") {
+    return startChromium({ executablePath: getChromiumPath() });
+  }
+
+  if (browserType === "lightpanda") {
+    return startLightPanda();
+  }
+
+  const remoteHost = getLightPandaHost();
+  if (!remoteHost) {
+    throw new BrowserConnectionError(
+      `BROWSER_TYPE is set to 'remote' but LIGHTPANDA_HOST is not configured. ` +
+      `Set LIGHTPANDA_HOST environment variable or use a different BROWSER_TYPE.`
+    );
+  }
+
+  const url = new URL(remoteHost);
+  const host = url.hostname;
+  const port = parseInt(url.port, 10) || 9222;
+
+  return connectToRemoteBrowser(host, port);
 }
 
 export function stopBrowser(browser: BrowserProcess): void {
