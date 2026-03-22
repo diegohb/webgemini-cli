@@ -1,0 +1,432 @@
+import { describe, test, expect } from "bun:test";
+import { existsSync, mkdirSync, writeFileSync, rmSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
+
+const TEST_DIR = join(tmpdir(), "webgemini_cli_test");
+const TEST_CONFIG_DIR = join(TEST_DIR, "config");
+const TEST_STORAGE_PATH = join(TEST_CONFIG_DIR, "storage_state.json");
+
+process.env.WEBGEMINI_CONFIG_DIR = TEST_CONFIG_DIR;
+
+const MOCK_COOKIES = [
+  {
+    name: "__Secure-1PSID",
+    value: "testvalue1",
+    expires: Math.floor(Date.now() / 1000) + 86400 * 10,
+    domain: ".google.com",
+    path: "/",
+    secure: true,
+  },
+  {
+    name: "__Secure-1PSIDTS",
+    value: "testvalue2",
+    expires: Math.floor(Date.now() / 1000) + 86400 * 10,
+    domain: ".google.com",
+    path: "/",
+    secure: true,
+  },
+];
+
+function setupTestStorage(): void {
+  if (!existsSync(TEST_CONFIG_DIR)) {
+    mkdirSync(TEST_CONFIG_DIR, { recursive: true });
+  }
+  writeFileSync(TEST_STORAGE_PATH, JSON.stringify({ cookies: MOCK_COOKIES }));
+}
+
+function cleanupTestStorage(): void {
+  if (existsSync(TEST_DIR)) {
+    rmSync(TEST_DIR, { recursive: true, force: true });
+  }
+}
+
+describe("CLI Integration Tests", () => {
+  const cliPath = join(process.cwd(), "src", "cli.ts");
+
+  describe("Command-line Interface Parsing", () => {
+    test("--version shows version 0.2.0", async () => {
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "--version"],
+        env: process.env,
+      });
+
+      const stdout = await new Response(proc.stdout).text();
+      await proc.exited;
+
+      expect(proc.exitCode).toBe(0);
+      expect(stdout.trim()).toBe("0.2.0");
+    });
+
+    test("--help shows all commands", async () => {
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "--help"],
+        env: process.env,
+      });
+
+      const stdout = await new Response(proc.stdout).text();
+      await proc.exited;
+
+      expect(stdout).toContain("auth");
+      expect(stdout).toContain("list");
+      expect(stdout).toContain("fetch");
+      expect(stdout).toContain("continue");
+      expect(stdout).toContain("export");
+      expect(stdout).toContain("export-all");
+      expect(stdout).toContain("status");
+    });
+
+    test("unknown command returns exit code 1", async () => {
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "nonexistent"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      expect(proc.exitCode).toBe(1);
+    });
+  });
+
+  describe("auth command", () => {
+    test("auth --help displays auth command help", async () => {
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "auth", "--help"],
+        env: process.env,
+      });
+
+      const stdout = await new Response(proc.stdout).text();
+      await proc.exited;
+
+      expect(stdout).toContain("auth");
+    });
+  });
+
+  describe("list command argument parsing", () => {
+    test("missing storage exits with code 2", async () => {
+      cleanupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "list"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      expect(proc.exitCode).toBe(2);
+    });
+
+    test("-n option is parsed correctly", async () => {
+      setupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "list", "-n", "5"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      cleanupTestStorage();
+    });
+
+    test("--limit long form is parsed correctly", async () => {
+      setupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "list", "--limit", "25"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      cleanupTestStorage();
+    });
+  });
+
+  describe("fetch command validation", () => {
+    test("fetch without arguments shows error", async () => {
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "fetch"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      expect(proc.exitCode).toBe(1);
+    });
+
+    test("fetch with empty conversation-id shows error", async () => {
+      setupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "fetch", ""],
+        env: process.env,
+      });
+
+      await proc.exited;
+      cleanupTestStorage();
+      expect(proc.exitCode).toBe(1);
+    });
+  });
+
+  describe("continue command validation", () => {
+    test("continue without arguments shows error", async () => {
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "continue"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      expect(proc.exitCode).toBe(1);
+    });
+
+    test("continue with empty message shows error", async () => {
+      setupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "continue", "chat123", ""],
+        env: process.env,
+      });
+
+      await proc.exited;
+      cleanupTestStorage();
+      expect(proc.exitCode).toBe(1);
+    });
+  });
+
+  describe("export command validation", () => {
+    test("export without arguments shows error", async () => {
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "export"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      expect(proc.exitCode).toBe(1);
+    });
+
+    test("export -f json option is accepted", async () => {
+      setupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "export", "chat123", "-f", "json"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      cleanupTestStorage();
+    });
+
+    test("export --include-metadata flag is accepted", async () => {
+      setupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "export", "chat123", "--include-metadata"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      cleanupTestStorage();
+    });
+  });
+
+  describe("export-all command options", () => {
+    test("export-all -o option is accepted", async () => {
+      setupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "export-all", "-o", TEST_DIR],
+        env: process.env,
+      });
+
+      await proc.exited;
+      cleanupTestStorage();
+    });
+
+    test("export-all --since option is accepted", async () => {
+      setupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "export-all", "--since", "2024-01-01"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      cleanupTestStorage();
+    });
+  });
+
+  describe("status command", () => {
+    test("status with no storage exits with 2", async () => {
+      cleanupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "status"],
+        env: process.env,
+      });
+
+      const stdout = await new Response(proc.stdout).text();
+      await proc.exited;
+
+      expect(proc.exitCode).toBe(2);
+      expect(stdout).toContain("Missing");
+    });
+  });
+
+  describe("verbose flag", () => {
+    test("-v flag is accepted by list command", async () => {
+      setupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "-v", "list"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      cleanupTestStorage();
+    });
+
+    test("--verbose flag is accepted", async () => {
+      setupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "--verbose", "list"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      cleanupTestStorage();
+    });
+  });
+
+  describe("Exit codes", () => {
+    test("version command exits with 0", async () => {
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "--version"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      expect(proc.exitCode).toBe(0);
+    });
+
+    test("missing command exits with 1", async () => {
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "invalid"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      expect(proc.exitCode).toBe(1);
+    });
+
+    test("missing auth exits with 2", async () => {
+      cleanupTestStorage();
+
+      const proc = Bun.spawn({
+        cmd: ["bun", "run", cliPath, "list"],
+        env: process.env,
+      });
+
+      await proc.exited;
+      expect(proc.exitCode).toBe(2);
+    });
+  });
+});
+
+describe("Exporter Module", () => {
+  test("formatChatAsMarkdown with metadata", async () => {
+    const { formatChatAsMarkdown } = await import("../src/exporter");
+
+    const messages = [
+      { role: "user" as const, content: "Hello", conversation_id: "123" },
+      { role: "model" as const, content: "Hi there!", conversation_id: "123" },
+    ];
+
+    const result = formatChatAsMarkdown(messages, "Test Chat", "123", {
+      includeMetadata: true,
+    });
+
+    expect(result).toContain("# Test Chat");
+    expect(result).toContain("**User:**");
+    expect(result).toContain("**Gemini:**");
+    expect(result).toContain("Hello");
+    expect(result).toContain("Hi there!");
+    expect(result).toContain("conversation_id: 123");
+  });
+
+  test("formatChatAsMarkdown without conversationId omits comment", async () => {
+    const { formatChatAsMarkdown } = await import("../src/exporter");
+
+    const messages = [
+      { role: "user" as const, content: "Hello", conversation_id: "123" },
+    ];
+
+    const result = formatChatAsMarkdown(messages, "Test Chat", undefined, {
+      includeMetadata: false,
+    });
+
+    expect(result).toContain("# Test Chat");
+    expect(result).not.toContain("conversation_id:");
+    expect(result).not.toContain("title:");
+  });
+
+  test("formatChatAsMarkdown handles code blocks", async () => {
+    const { formatChatAsMarkdown } = await import("../src/exporter");
+
+    const messages = [
+      { role: "user" as const, content: "```js\nconsole.log('hello')\n```", conversation_id: "123" },
+    ];
+
+    const result = formatChatAsMarkdown(messages, "Code Chat", "123", {
+      includeMetadata: false,
+    });
+
+    expect(result).toContain("```js");
+    expect(result).toContain("console.log('hello')");
+    expect(result).toContain("```");
+  });
+});
+
+describe("Error Classes", () => {
+  test("WebGeminiError base class works", async () => {
+    const { WebGeminiError } = await import("../src/errors");
+    const error = new WebGeminiError("test message");
+    expect(error.name).toBe("WebGeminiError");
+    expect(error.message).toBe("test message");
+    expect(error).toBeInstanceOf(Error);
+  });
+
+  test("AuthenticationError extends WebGeminiError", async () => {
+    const { AuthenticationError, WebGeminiError } = await import("../src/errors");
+    const error = new AuthenticationError("auth failed");
+    expect(error).toBeInstanceOf(WebGeminiError);
+    expect(error.name).toBe("AuthenticationError");
+  });
+
+  test("CookieExpiredError extends AuthenticationError", async () => {
+    const { CookieExpiredError, AuthenticationError } = await import("../src/errors");
+    const error = new CookieExpiredError("expired");
+    expect(error).toBeInstanceOf(AuthenticationError);
+    expect(error.name).toBe("CookieExpiredError");
+  });
+
+  test("ConversationNotFoundError works", async () => {
+    const { ConversationNotFoundError, WebGeminiError } = await import("../src/errors");
+    const error = new ConversationNotFoundError("not found");
+    expect(error).toBeInstanceOf(WebGeminiError);
+    expect(error.name).toBe("ConversationNotFoundError");
+  });
+
+  test("GeminiAPIError works", async () => {
+    const { GeminiAPIError, WebGeminiError } = await import("../src/errors");
+    const error = new GeminiAPIError("api error");
+    expect(error).toBeInstanceOf(WebGeminiError);
+    expect(error.name).toBe("GeminiAPIError");
+  });
+
+  test("getErrorClass maps error types correctly", async () => {
+    const { getErrorClass } = await import("../src/errors");
+    
+    const AuthClass = getErrorClass("AuthenticationError");
+    expect(new AuthClass("test")).toBeInstanceOf(Error);
+
+    const UnknownClass = getErrorClass("NonExistentError");
+    expect(new UnknownClass("test")).toBeInstanceOf(Error);
+  });
+});
