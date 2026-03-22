@@ -1,0 +1,14 @@
+README.md
+pyproject.toml
+src/webgemini_cli/__init__.py
+src/webgemini_cli/__main__.py
+src/webgemini_cli/auth_manager.py
+src/webgemini_cli/cli.py
+src/webgemini_cli/config.py
+src/webgemini_cli/gemini_client.py
+src/webgemini_cli.egg-info/PKG-INFO
+src/webgemini_cli.egg-info/SOURCES.txt
+src/webgemini_cli.egg-info/dependency_links.txt
+src/webgemini_cli.egg-info/entry_points.txt
+src/webgemini_cli.egg-info/requires.txt
+src/webgemini_cli.egg-info/top_level.txt

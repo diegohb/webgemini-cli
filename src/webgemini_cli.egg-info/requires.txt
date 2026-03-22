@@ -1,0 +1,8 @@
+python-gemini-api
+playwright
+click
+rich
+
+[dev]
+pytest
+ruff
