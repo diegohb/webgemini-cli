@@ -5,23 +5,40 @@ A TypeScript CLI tool that bridges LightPanda browser automation with Gemini web
 ## Prerequisites
 
 - **Bun**: Version 1.0 or higher ([Install](https://bun.sh))
-- **LightPanda Browser**: Required for authentication ([Install](https://lightpanda.dev))
+- **Chromium**: Required for authentication (system-installed or specify custom path)
 - **Python**: Version 3.11 or higher (for the Python wrapper)
 - **Google Account**: A Google account with access to Gemini (https://gemini.google.com)
 
 ### Browser Installation
 
-LightPanda is required for authentication. Install it via npm:
+Chromium is used by default for authentication. Install it via your system's package manager:
+
+```bash
+# macOS (Homebrew)
+brew install chromium
+
+# Ubuntu/Debian
+sudo apt install chromium
+
+# Windows (Scoop)
+scoop install chromium
+```
+
+Or specify a custom path to an existing Chromium-based browser (Chrome, Edge, etc.) via the `CHROMIUM_PATH` environment variable.
+
+### Alternative: LightPanda Browser
+
+LightPanda is a lightweight headless browser alternative. Install it via npm:
 
 ```bash
 npm install -g @lightpanda/browser
 ```
 
-Or visit https://lightpanda.dev for alternative installation methods.
+Or visit https://lightpanda.dev for alternative installation methods. Use `--browser lightpanda` to switch.
 
-### Docker Installation (Alternative)
+### Docker Installation (LightPanda)
 
-If you don't want to install LightPanda locally, you can use Docker to run a headless LightPanda browser:
+You can also run LightPanda in Docker:
 
 ```bash
 # Install and run LightPanda
@@ -34,7 +51,7 @@ docker start lightpanda
 docker stop lightpanda
 ```
 
-For automatic Docker provisioning, set `LIGHTPANDA_DOCKER=true` when running the auth command.
+For automatic Docker provisioning, set `LIGHTPANDA_DOCKER=true` when running the auth command with `--browser lightpanda`.
 
 ## Installation
 
@@ -66,7 +83,7 @@ The CLI can be run directly with `bun run src/cli.ts` or via the built binary at
 │         │                    │                    │            │
 │         │                    │                    ▼            │
 │         │                    │            ┌──────────────┐    │
-│         │                    │            │  LightPanda  │    │
+│         │                    │            │   Chromium   │    │
 │         │                    │            │   Browser    │    │
 │         │                    │            └──────────────┘    │
 │         │                    │                    │            │
@@ -85,7 +102,7 @@ The CLI can be run directly with `bun run src/cli.ts` or via the built binary at
 |-----------|------|---------|
 | **CLI** | `src/cli.ts` | Command-line interface using Commander.js |
 | **GeminiClient** | `src/gemini-client.ts` | Gemini API client |
-| **AuthManager** | `src/auth.ts` | LightPanda browser automation for login |
+| **AuthManager** | `src/auth.ts` | Browser automation for login (Chromium/LightPanda) |
 | **CookieStore** | `src/cookie-store.ts` | Persistent cookie storage |
 
 ### Architecture
@@ -102,7 +119,7 @@ The CLI is written in TypeScript using Bun for fast startup and type safety. Gem
 │   1. User runs 'webgemini auth'                                   │
 │            │                                                      │
 │            ▼                                                      │
-│   2. LightPanda launches Chromium browser (headless=False)       │
+│   2. Chromium browser launches (headless=False)                  │
 │            │                                                      │
 │            ▼                                                      │
 │   3. Navigate to https://gemini.google.com                       │
@@ -173,19 +190,22 @@ Or with the built binary:
 
 This will open a browser window for you to log in with your Google account. Cookies will be saved for future use.
 
-#### Remote LightPanda
+#### Alternative Browsers
 
-Connect to a remote LightPanda browser using Docker or a custom host:
+Use LightPanda or connect to a remote browser:
 
 ```bash
-# Using Docker auto-provisioning
-LIGHTPANDA_DOCKER=true webgemini auth
+# Using LightPanda
+webgemini auth --browser lightpanda
+
+# Using Docker auto-provisioning for LightPanda
+LIGHTPANDA_DOCKER=true webgemini auth --browser lightpanda
 
 # Using a specific remote host
-webgemini auth --lightpanda-host ws://localhost:9222
+webgemini auth --browser remote --remote-host ws://localhost:9222
 
 # Using environment variable
-LIGHTPANDA_HOST=ws://localhost:9222 webgemini auth
+LIGHTPANDA_HOST=ws://localhost:9222 webgemini auth --browser remote
 ```
 
 ### Check Status
@@ -303,8 +323,8 @@ The CLI supports multiple browser types with flexible configuration:
 
 | Type | Description |
 |------|-------------|
-| `chromium` | Use Chromium (system-installed or Chromium-based browser) |
-| `lightpanda` | Use LightPanda browser (default) |
+| `chromium` | Use Chromium (system-installed or Chromium-based browser) - **default** |
+| `lightpanda` | Use LightPanda browser |
 | `remote` | Connect to a remote browser via WebSocket |
 
 #### CLI Flag
@@ -357,7 +377,7 @@ Configuration values are resolved in this order (highest to lowest):
 1. **CLI flags** (e.g., `--browser chromium`)
 2. **Environment variables** (e.g., `BROWSER_TYPE=chromium`)
 3. **Config file** (e.g., `~/.config/webgemini-cli/config.json`)
-4. **Default values** (chromium, no custom path)
+4. **Default values** (`chromium`, no custom path)
 
 Example: If `BROWSER_TYPE=lightpanda` is set in the environment but `--browser chromium` is passed via CLI, the CLI value takes precedence.
 
