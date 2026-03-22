@@ -798,3 +798,161 @@ describe("Config CLI Commands", () => {
     expect(proc.exitCode).toBe(1);
   });
 });
+
+describe("CLI Flag Precedence", () => {
+  const TEST_CONFIG_DIR = join(tmpdir(), "webgemini_cli_precedence_test");
+  const ORIGINAL_CONFIG_DIR = Bun.env.WEBGEMINI_CONFIG_DIR;
+
+  beforeEach(() => {
+    Bun.env.WEBGEMINI_CONFIG_DIR = TEST_CONFIG_DIR;
+    rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+    mkdirSync(TEST_CONFIG_DIR, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+    Bun.env.WEBGEMINI_CONFIG_DIR = ORIGINAL_CONFIG_DIR;
+    delete Bun.env.BROWSER_TYPE;
+    delete Bun.env.CHROMIUM_PATH;
+    delete Bun.env.LIGHTPANDA_HOST;
+  });
+
+  test("mergeConfigWithEnv: CLI flag chromium takes precedence over BROWSER_TYPE env var", async () => {
+    Bun.env.BROWSER_TYPE = "lightpanda";
+    const { mergeConfigWithEnv } = await import("../src/config-file");
+    const result = mergeConfigWithEnv("chromium");
+    expect(result.browserType).toBe("chromium");
+    expect(result.sources.browserType).toBe("cli");
+  });
+
+  test("mergeConfigWithEnv: CLI flag lightpanda takes precedence over config file", async () => {
+    const { saveConfig, mergeConfigWithEnv } = await import("../src/config-file");
+    saveConfig({ browser: { type: "chromium" as const } });
+    const result = mergeConfigWithEnv("lightpanda");
+    expect(result.browserType).toBe("lightpanda");
+    expect(result.sources.browserType).toBe("cli");
+  });
+
+  test("mergeConfigWithEnv: CLI flag remote takes precedence over env and config", async () => {
+    Bun.env.BROWSER_TYPE = "chromium";
+    const { saveConfig, mergeConfigWithEnv } = await import("../src/config-file");
+    saveConfig({ browser: { type: "chromium" as const } });
+    const result = mergeConfigWithEnv("remote");
+    expect(result.browserType).toBe("remote");
+    expect(result.sources.browserType).toBe("cli");
+  });
+
+  test("mergeConfigWithEnv: BROWSER_TYPE env var takes precedence over config file", async () => {
+    Bun.env.BROWSER_TYPE = "lightpanda";
+    const { saveConfig, mergeConfigWithEnv } = await import("../src/config-file");
+    saveConfig({ browser: { type: "chromium" as const } });
+    const result = mergeConfigWithEnv();
+    expect(result.browserType).toBe("lightpanda");
+    expect(result.sources.browserType).toBe("env");
+  });
+
+  test("mergeConfigWithEnv: Config file is used when no CLI flag or env var", async () => {
+    const { saveConfig, mergeConfigWithEnv } = await import("../src/config-file");
+    saveConfig({ browser: { type: "remote" as const } });
+    const result = mergeConfigWithEnv();
+    expect(result.browserType).toBe("remote");
+    expect(result.sources.browserType).toBe("config");
+  });
+
+  test("mergeConfigWithEnv: Default browser is chromium when no CLI, env, or config", async () => {
+    const { mergeConfigWithEnv } = await import("../src/config-file");
+    const result = mergeConfigWithEnv();
+    expect(result.browserType).toBe("chromium");
+    expect(result.sources.browserType).toBe("default");
+  });
+
+  test("mergeConfigWithEnv: Invalid browser type via CLI falls back to env", async () => {
+    Bun.env.BROWSER_TYPE = "lightpanda";
+    const { mergeConfigWithEnv } = await import("../src/config-file");
+    const result = mergeConfigWithEnv("invalid_browser");
+    expect(result.browserType).toBe("lightpanda");
+    expect(result.sources.browserType).toBe("env");
+  });
+
+  test("mergeConfigWithEnv: Invalid browser type via CLI falls back to config file", async () => {
+    const { saveConfig, mergeConfigWithEnv } = await import("../src/config-file");
+    saveConfig({ browser: { type: "remote" as const } });
+    const result = mergeConfigWithEnv("not_a_browser");
+    expect(result.browserType).toBe("remote");
+    expect(result.sources.browserType).toBe("config");
+  });
+
+  test("mergeConfigWithEnv: Invalid browser type via CLI uses default when no env or config", async () => {
+    const { mergeConfigWithEnv } = await import("../src/config-file");
+    const result = mergeConfigWithEnv("bad_value");
+    expect(result.browserType).toBe("chromium");
+    expect(result.sources.browserType).toBe("default");
+  });
+});
+
+describe("Deprecated Flag Warnings", () => {
+  const cliPath = join(process.cwd(), "src", "cli.ts");
+  const TEST_CONFIG_DIR = join(tmpdir(), "webgemini_cli_deprecated_test");
+  const ORIGINAL_CONFIG_DIR = Bun.env.WEBGEMINI_CONFIG_DIR;
+
+  beforeEach(() => {
+    Bun.env.WEBGEMINI_CONFIG_DIR = TEST_CONFIG_DIR;
+    rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+    mkdirSync(TEST_CONFIG_DIR, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+    Bun.env.WEBGEMINI_CONFIG_DIR = ORIGINAL_CONFIG_DIR;
+  });
+
+  test("--lightpanda-host help text shows deprecation", async () => {
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "auth", "--help"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(stdout).toContain("deprecated");
+  });
+
+  test("--lightpanda-docker help text shows deprecation", async () => {
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "auth", "--help"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    expect(stdout).toContain("deprecated");
+  });
+
+  test("--lightpanda-host help text shows correct replacement", async () => {
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "auth", "--help"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    const normalized = stdout.replace(/\s+/g, " ");
+    expect(normalized).toContain("--browser remote --remote-host");
+  });
+
+  test("--lightpanda-docker help text shows correct replacement", async () => {
+    const proc = Bun.spawn({
+      cmd: ["bun", "run", cliPath, "auth", "--help"],
+      env: process.env,
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    await proc.exited;
+
+    const normalized = stdout.replace(/\s+/g, " ");
+    expect(normalized).toContain("--browser lightpanda");
+  });
+});
