@@ -1,6 +1,10 @@
-import type { GeminiMessage } from "./types/index.js";
+import type { GeminiMessage } from "./types/gemini.js";
 
+/**
+ * Options for chat export formatting.
+ */
 export interface ExportOptions {
+  /** Include metadata (title, export date, message count) at the top of the export */
   includeMetadata?: boolean;
 }
 
@@ -41,6 +45,14 @@ function formatCodeBlocks(content: string): string {
   return result.join("\n");
 }
 
+/**
+ * Formats a list of Gemini messages as a Markdown document.
+ * @param messages - Array of GeminiMessage objects to format
+ * @param title - Title for the exported chat
+ * @param conversationId - Optional conversation ID to include as metadata
+ * @param options - Export options such as including metadata
+ * @returns Formatted Markdown string
+ */
 export function formatChatAsMarkdown(
   messages: GeminiMessage[],
   title: string,
