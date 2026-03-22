@@ -47,6 +47,36 @@ export class SubprocessTimeoutError extends SubprocessError {
     }
 }
 
+export class LightPandaNotFoundError extends WebGeminiError {
+    constructor(message: string = "LightPanda browser not found. Please ensure LightPanda is installed.") {
+        super(message);
+        this.name = "LightPandaNotFoundError";
+    }
+}
+
+export class BrowserConnectionError extends WebGeminiError {
+    constructor(message: string = "Could not connect to browser.") {
+        super(message);
+        this.name = "BrowserConnectionError";
+    }
+}
+
+export class BrowserClosedError extends WebGeminiError {
+    constructor(message: string = "Browser was closed before authentication completed.") {
+        super(message);
+        this.name = "BrowserClosedError";
+    }
+}
+
+export class PortInUseError extends WebGeminiError {
+    constructor(port: number, message?: string) {
+        super(message || `Port ${port} is already in use. Tried alternate ports without success.`);
+        this.name = "PortInUseError";
+        this.port = port;
+    }
+    port: number;
+}
+
 const ERROR_TYPE_MAP: Record<string, new (message: string) => WebGeminiError> = {
     AuthenticationError,
     CookieExpiredError,
@@ -55,6 +85,9 @@ const ERROR_TYPE_MAP: Record<string, new (message: string) => WebGeminiError> = 
     WebGeminiError,
     SubprocessError,
     SubprocessTimeoutError,
+    LightPandaNotFoundError,
+    BrowserConnectionError,
+    BrowserClosedError,
 };
 
 export function getErrorClass(errorType: string): new (message: string) => WebGeminiError {

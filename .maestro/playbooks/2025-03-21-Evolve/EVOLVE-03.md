@@ -70,7 +70,7 @@ Replace Playwright/Chromium with LightPanda for browser-based authentication. Li
   - Verify cookies file format is correct
   - Created unit tests in tests/auth.test.ts and tests/cookie-store.test.ts (13 tests passing)
 
-- [ ] Handle edge cases:
+- [x] Handle edge cases:
   - LightPanda binary not found (provide install instructions)
   - Port 9222 already in use (try alternate ports)
   - Browser crashes during auth (cleanup and retry)

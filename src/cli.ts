@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { login, loadCookies } from "./auth.js";
-import { AuthenticationError, CookieExpiredError } from "./errors.js";
+import { AuthenticationError, CookieExpiredError, LightPandaNotFoundError, PortInUseError, BrowserClosedError, BrowserConnectionError } from "./errors.js";
 
 const program = new Command();
 
@@ -20,6 +20,22 @@ program
       console.log(`\x1b[32m✓ Authentication successful!\x1b[0m`);
       console.log(`\x1b[90m  Saved ${cookies.length} cookies.\x1b[0m`);
     } catch (error) {
+      if (error instanceof LightPandaNotFoundError) {
+        console.error(`\x1b[31m✗ LightPanda not found:\x1b[0m ${error.message}`);
+        process.exit(1);
+      }
+      if (error instanceof PortInUseError) {
+        console.error(`\x1b[31m✗ Port in use:\x1b[0m ${error.message}`);
+        process.exit(1);
+      }
+      if (error instanceof BrowserClosedError) {
+        console.error(`\x1b[31m✗ Browser closed:\x1b[0m ${error.message}`);
+        process.exit(1);
+      }
+      if (error instanceof BrowserConnectionError) {
+        console.error(`\x1b[31m✗ Connection failed:\x1b[0m ${error.message}`);
+        process.exit(1);
+      }
       if (error instanceof AuthenticationError) {
         console.error(`\x1b[31m✗ Authentication failed:\x1b[0m ${error.message}`);
         process.exit(1);
@@ -34,7 +50,7 @@ program
           process.exit(1);
         }
         if (error.message.includes("ECONNREFUSED")) {
-          console.error(`\x1b[31m✗ Connection failed:\x1b[0m Could not connect to LightPanda. Port 9222 may be in use.`);
+          console.error(`\x1b[31m✗ Connection failed:\x1b[0m Could not connect to LightPanda. Port may be in use.`);
           process.exit(1);
         }
         console.error(`\x1b[31m✗ Error:\x1b[0m ${error.message}`);
