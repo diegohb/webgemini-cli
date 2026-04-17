@@ -55,6 +55,7 @@ def retry_on_auth_failure(func: F) -> F:
 class GeminiClient:
     def __init__(self, cookies: dict[str, str]) -> None:
         self._cookies = cookies
+        self._gemini: Gemini | None = None
         self._session = requests.Session()
         self._session.headers.update(
             {
@@ -66,7 +67,6 @@ class GeminiClient:
         )
         for key, value in cookies.items():
             self._session.cookies.set(key, value)
-        self._gemini = Gemini(cookies=cookies)
         self._setup_session()
 
     def _setup_session(self) -> None:
@@ -170,6 +170,8 @@ class GeminiClient:
 
     @retry_on_auth_failure
     def continue_chat(self, conversation_id: str, message: str) -> str:
+        if self._gemini is None:
+            self._gemini = Gemini(cookies=self._cookies)
         self._gemini.rcid = conversation_id
         try:
             response = self._gemini.generate_content(message)
