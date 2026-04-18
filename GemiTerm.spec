@@ -2,26 +2,11 @@
 
 
 a = Analysis(
-    ['src/gemiterm/__main__.py'],
-    pathex=[],
+    ['src\\gemiterm\\__main__.py'],
+    pathex=['C:\\Python314'],
     binaries=[],
-    datas=[
-        ('src/gemiterm', 'gemiterm'),
-    ],
-    hiddenimports=[
-        'asyncio',
-        'rich',
-        'rich.console',
-        'rich.progress',
-        'rich.table',
-        'rich.panel',
-        'rich.markdown',
-        'rich.syntax',
-        'click',
-        'playwright',
-        'gemini_webapi',
-        'gemini_webapi_async',
-    ],
+    datas=[('src/gemiterm', 'gemiterm')],
+    hiddenimports=['rich', 'rich.console', 'rich.progress', 'rich.table', 'rich.panel', 'rich.markdown', 'rich.syntax', 'click', 'playwright', 'gemini_webapi', 'gemini_webapi_async'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

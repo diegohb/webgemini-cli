@@ -598,21 +598,77 @@ def install_browser() -> None:
     if getattr(sys, "frozen", False):
         py_cmd = shutil.which("py")
         if py_cmd:
-            cmd = [py_cmd, "-3", "-m", "playwright", "install", "chromium"]
-        else:
-            python_exe = shutil.which("python") or shutil.which("python3")
-            if not python_exe:
-                python_exe = os.path.join(sys.base_prefix, "python.exe")
+            result = subprocess.run([py_cmd, "-3", "--version"], capture_output=True, text=True)
+            if result.returncode == 0:
+                cmd = [py_cmd, "-3", "-m", "playwright", "install", "chromium"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    console.print("[bold green]Chromium installed successfully.[/bold green]")
+                    return
+
+        python_exe = shutil.which("python") or shutil.which("python3")
+        if python_exe:
             cmd = [python_exe, "-m", "playwright", "install", "chromium"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                console.print("[bold green]Chromium installed successfully.[/bold green]")
+                return
+
+        console.print("[yellow]Neither py nor python found. Attempting direct download...[/yellow]")
+        _download_chromium_fallback()
+        console.print("[bold green]Chromium installed successfully.[/bold green]")
     else:
         cmd = [sys.executable, "-m", "playwright", "install", "chromium"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            console.print(f"[bold red]Failed to install Chromium:[/bold red]")
+            console.print(result.stderr)
+            raise click.ClickException("Chromium installation failed")
+        console.print("[bold green]Chromium installed successfully.[/bold green]")
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        console.print(f"[bold red]Failed to install Chromium:[/bold red]")
-        console.print(result.stderr)
-        raise click.ClickException("Chromium installation failed")
-    console.print("[bold green]Chromium installed successfully.[/bold green]")
+
+def _download_chromium_fallback() -> None:
+    """Download Chromium directly using urllib when Python is not available."""
+    import urllib.request
+    import zipfile
+    import shutil as sh
+    from pathlib import Path
+
+    playwright_dir = Path.home() / ".cache" / "ms-playwright"
+    chromium_base = playwright_dir / "chromium-1312"
+    chrome_exe = chromium_base / "chrome-win" / "chrome.exe"
+
+    if chrome_exe.exists():
+        return
+
+    console.print("[cyan]Downloading Chromium (~200MB, may take several minutes)...[/cyan]")
+
+    tmp_dir = playwright_dir / "tmp"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    zip_path = tmp_dir / "chromium.zip"
+
+    urls = [
+        "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/1312/chrome-win.zip",
+        "https://commondatastorage.googleapis.com/chromium-browser-snapshots/Win_x64/1312/chrome-win.zip",
+    ]
+
+    downloaded = False
+    for url in urls:
+        try:
+            urllib.request.urlretrieve(url, zip_path)
+            downloaded = True
+            break
+        except Exception:
+            continue
+
+    if not downloaded:
+        raise RuntimeError("Failed to download Chromium from any source")
+
+    console.print("[cyan]Extracting Chromium...[/cyan]")
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        zip_ref.extractall(playwright_dir)
+
+    sh.rmtree(tmp_dir, ignore_errors=True)
 
 
 @cli.command()
