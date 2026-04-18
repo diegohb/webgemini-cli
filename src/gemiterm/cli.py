@@ -599,22 +599,34 @@ def install_browser() -> None:
         py_cmd = shutil.which("py")
         if py_cmd:
             result = subprocess.run([py_cmd, "-3", "--version"], capture_output=True, text=True)
-            if result.returncode == 0:
+            if (
+                result.returncode == 0
+                and "Python" in result.stdout
+                and "not found" not in result.stdout.lower()
+            ):
                 cmd = [py_cmd, "-3", "-m", "playwright", "install", "chromium"]
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode == 0:
                     console.print("[bold green]Chromium installed successfully.[/bold green]")
                     return
+                console.print(
+                    f"[yellow]py -3 method failed: {result.stderr or result.stdout}[/yellow]"
+                )
 
         python_exe = shutil.which("python") or shutil.which("python3")
         if python_exe:
-            cmd = [python_exe, "-m", "playwright", "install", "chromium"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run([python_exe, "--version"], capture_output=True, text=True)
             if result.returncode == 0:
-                console.print("[bold green]Chromium installed successfully.[/bold green]")
-                return
+                cmd = [python_exe, "-m", "playwright", "install", "chromium"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    console.print("[bold green]Chromium installed successfully.[/bold green]")
+                    return
+                console.print(
+                    f"[yellow]python method failed: {result.stderr or result.stdout}[/yellow]"
+                )
 
-        console.print("[yellow]Neither py nor python found. Attempting direct download...[/yellow]")
+        console.print("[yellow]Attempting direct Chromium download...[/yellow]")
         _download_chromium_fallback()
         console.print("[bold green]Chromium installed successfully.[/bold green]")
     else:
