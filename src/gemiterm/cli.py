@@ -640,8 +640,7 @@ def install_browser() -> None:
 
 
 def _download_chromium_fallback() -> None:
-    """Download Chromium directly using urllib when Python is not available."""
-    import urllib.request
+    """Download Chromium directly using PowerShell when Python is not available."""
     import zipfile
     import shutil as sh
     from pathlib import Path
@@ -659,22 +658,16 @@ def _download_chromium_fallback() -> None:
     tmp_dir.mkdir(parents=True, exist_ok=True)
     zip_path = tmp_dir / "chromium.zip"
 
-    urls = [
-        "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/1312/chrome-win.zip",
-        "https://commondatastorage.googleapis.com/chromium-browser-snapshots/Win_x64/1312/chrome-win.zip",
-    ]
+    url = "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/1312/chrome-win.zip"
 
-    downloaded = False
-    for url in urls:
-        try:
-            urllib.request.urlretrieve(url, zip_path)
-            downloaded = True
-            break
-        except Exception:
-            continue
-
-    if not downloaded:
-        raise RuntimeError("Failed to download Chromium from any source")
+    ps_script = f'''
+    $ProgressPreference = 'SilentlyContinue'
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri "{url}" -OutFile "{zip_path}" -UseBasicParsing
+    '''
+    result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Failed to download Chromium: {result.stderr}")
 
     console.print("[cyan]Extracting Chromium...[/cyan]")
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
