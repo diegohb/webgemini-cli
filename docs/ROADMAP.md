@@ -12,7 +12,7 @@ related:
 
 # Future Enhancement Roadmap
 
-This document outlines planned features and enhancements for webgemini-cli.
+This document outlines planned features and enhancements for gemiterm.
 
 ## Interactive CLI Mode
 
@@ -152,7 +152,7 @@ Support multiple Google accounts with isolated profiles.
 **Dependencies:** Keyring or encrypted config storage
 
 **Features:**
-- Named profiles (e.g., `webgemini --profile work list`)
+- Named profiles (e.g., `gemiterm --profile work list`)
 - Separate cookie storage per profile
 - Easy profile switching
 - Profile-specific configuration options
@@ -192,4 +192,4 @@ class ProfileManager:
 
 ## Contributing
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for guidance on contributing to webgemini-cli.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for guidance on contributing to gemiterm.

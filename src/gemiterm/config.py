@@ -1,12 +1,12 @@
 import os
 from pathlib import Path
 
-CONFIG_DIR_DEFAULT = ".config/webgemini-cli"
+CONFIG_DIR_DEFAULT = ".config/gemiterm"
 STORAGE_STATE_FILE = "storage_state.json"
 
 
 def _get_config_dir() -> Path:
-    env_override = os.environ.get("WEBGEMINI_CONFIG_DIR")
+    env_override = os.environ.get("GEMITERM_CONFIG_DIR")
     if env_override:
         return Path(env_override)
     return Path.home() / CONFIG_DIR_DEFAULT

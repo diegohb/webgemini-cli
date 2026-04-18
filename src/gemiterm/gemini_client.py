@@ -3,8 +3,8 @@ from typing import Any
 
 from gemini_webapi import ChatHistory, ChatSession, GeminiClient as WebAPIClient
 
-from webgemini_cli.exceptions import GeminiAPIError
-from webgemini_cli.logging_config import get_logger
+from gemiterm.exceptions import GeminiAPIError
+from gemiterm.logging_config import get_logger
 
 logger = get_logger(__name__)
 

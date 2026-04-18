@@ -1,11 +1,11 @@
 #!/bin/bash
-# Usage Examples for webgemini-cli
+# Usage Examples for gemiterm
 # This script demonstrates common workflows and commands
 
 set -e
 
 echo "========================================"
-echo "webgemini-cli Usage Examples"
+echo "gemiterm Usage Examples"
 echo "========================================"
 
 #------------------------------------------
@@ -17,7 +17,7 @@ section1() {
     echo ""
 
     # Install the CLI
-    echo "1. Install webgemini-cli:"
+    echo "1. Install gemiterm:"
     echo "   pip install -e ."
     echo ""
 
@@ -28,13 +28,13 @@ section1() {
 
     # Authenticate
     echo "3. Authenticate with Google:"
-    echo "   webgemini auth"
+    echo "   gemiterm auth"
     echo "   # Opens browser window for login"
     echo ""
 
     # Verify authentication
     echo "4. Verify authentication status:"
-    echo "   webgemini status"
+    echo "   gemiterm status"
     echo "   # Shows: Authenticated: True"
     echo ""
 }
@@ -49,33 +49,33 @@ section2() {
 
     # Check status
     echo "1. Check authentication status:"
-    echo "   webgemini status"
+    echo "   gemiterm status"
     echo ""
 
     # List recent chats
     echo "2. List your recent chats:"
-    echo "   webgemini list"
+    echo "   gemiterm list"
     echo "   # Shows table of conversations"
     echo ""
 
     # List with limit
     echo "3. List specific number of chats:"
-    echo "   webgemini list -n 5"
+    echo "   gemiterm list -n 5"
     echo "   # Shows 5 most recent chats"
     echo ""
 
     # Fetch a specific chat
     echo "4. View a conversation's history:"
-    echo "   webgemini fetch <conversation_id>"
+    echo "   gemiterm fetch <conversation_id>"
     echo "   # Example:"
-    echo "   webgemini fetch abc123xyz"
+    echo "   gemiterm fetch abc123xyz"
     echo ""
 
     # Continue a conversation
     echo "5. Send a message to existing chat:"
-    echo "   webgemini continue <conversation_id> <message>"
+    echo "   gemiterm continue <conversation_id> <message>"
     echo "   # Example:"
-    echo "   webgemini continue abc123xyz \"Continue my previous thought\""
+    echo "   gemiterm continue abc123xyz \"Continue my previous thought\""
     echo ""
 }
 
@@ -89,39 +89,39 @@ section3() {
 
     # Export single chat
     echo "1. Export a single conversation to Markdown:"
-    echo "   webgemini export <conversation_id>"
+    echo "   gemiterm export <conversation_id>"
     echo "   # Creates: gemini-chat-{id}-{date}.md"
     echo ""
 
     # Export with custom output
     echo "2. Export with custom output path:"
-    echo "   webgemini export <conversation_id> -o my-chat.md"
+    echo "   gemiterm export <conversation_id> -o my-chat.md"
     echo ""
 
     # Export as JSON
     echo "3. Export as JSON format:"
-    echo "   webgemini export <conversation_id> -f json"
+    echo "   gemiterm export <conversation_id> -f json"
     echo ""
 
     # Export with metadata
     echo "4. Export with full metadata:"
-    echo "   webgemini export <conversation_id> --include-metadata"
+    echo "   gemiterm export <conversation_id> --include-metadata"
     echo ""
 
     # Batch export all
     echo "5. Export all conversations:"
-    echo "   webgemini export-all"
+    echo "   gemiterm export-all"
     echo "   # Creates ./exports/ with all chats"
     echo ""
 
     # Export to specific directory
     echo "6. Export to custom directory:"
-    echo "   webgemini export-all -o ./my-backups/"
+    echo "   gemiterm export-all -o ./my-backups/"
     echo ""
 
     # Export recent only
     echo "7. Export only recent conversations:"
-    echo "   webgemini export-all --since 2026-03-01"
+    echo "   gemiterm export-all --since 2026-03-01"
     echo ""
 }
 
@@ -135,28 +135,28 @@ section4() {
 
     # Not authenticated
     echo "1. If not authenticated:"
-    echo "   $ webgemini list"
-    echo "   Error: Not authenticated. Run 'webgemini auth' first."
-    echo "   $ webgemini auth"
+    echo "   $ gemiterm list"
+    echo "   Error: Not authenticated. Run 'gemiterm auth' first."
+    echo "   $ gemiterm auth"
     echo ""
 
     # Session expired
     echo "2. If session expired:"
-    echo "   $ webgemini status"
+    echo "   $ gemiterm status"
     echo "   Error: Session expired. Please re-authenticate."
-    echo "   $ webgemini auth"
+    echo "   $ gemiterm auth"
     echo ""
 
     # Conversation not found
     echo "3. If conversation doesn't exist:"
-    echo "   $ webgemini fetch nonexistent-id"
+    echo "   $ gemiterm fetch nonexistent-id"
     echo "   Error: Conversation 'nonexistent-id' not found."
-    echo "   Run 'webgemini list' to see available conversations."
+    echo "   Run 'gemiterm list' to see available conversations."
     echo ""
 
     # Verbose debugging
     echo "4. Debug with verbose output:"
-    echo "   webgemini -v status"
+    echo "   gemiterm -v status"
     echo "   # Shows detailed logs"
     echo ""
 }
@@ -171,19 +171,19 @@ section5() {
 
     # Custom config directory
     echo "1. Use custom config directory:"
-    echo "   export WEBGEMINI_CONFIG_DIR=/path/to/config"
-    echo "   webgemini auth"
+    echo "   export GEMITERM_CONFIG_DIR=/path/to/config"
+    echo "   gemiterm auth"
     echo ""
 
     # Verbose mode
     echo "2. Enable verbose logging:"
-    echo "   export WEBGEMINI_VERBOSE=true"
-    echo "   webgemini list"
+    echo "   export GEMITERM_VERBOSE=true"
+    echo "   gemiterm list"
     echo ""
 
     # View config location
     echo "3. Default config location:"
-    echo "   ~/.config/webgemini-cli/"
+    echo "   ~/.config/gemiterm/"
     echo "   Contains:"
     echo "   - storage_state.json (cookies)"
     echo "   - config (future use)"
@@ -218,5 +218,5 @@ section5
 section6
 
 echo "========================================"
-echo "For more help: webgemini --help"
+echo "For more help: gemiterm --help"
 echo "========================================"

@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 
 from playwright.async_api import async_playwright
 
-from webgemini_cli.config import ensure_config_dir, get_storage_state_path
-from webgemini_cli.exceptions import AuthenticationError, CookieExpiredError
+from gemiterm.config import ensure_config_dir, get_storage_state_path
+from gemiterm.exceptions import AuthenticationError, CookieExpiredError
 
 REQUIRED_COOKIES = {"__Secure-1PSID", "__Secure-1PSIDTS"}
 COOKIE_EXPIRY_THRESHOLD_DAYS = 7
@@ -62,14 +62,14 @@ def load_cookies() -> tuple[str, str | None]:
     storage_path = get_storage_state_path()
     if not storage_path.exists():
         raise AuthenticationError(
-            f"Authentication required. Run 'webgemini auth' to authenticate. "
+            f"Authentication required. Run 'gemiterm auth' to authenticate. "
             f"Storage file not found at {storage_path}"
         )
     with open(storage_path) as f:
         cookies = json.load(f)
     if not check_cookie_freshness(cookies):
         raise CookieExpiredError(
-            "Session appears to be expired. Please run 'webgemini auth' to re-authenticate."
+            "Session appears to be expired. Please run 'gemiterm auth' to re-authenticate."
         )
     cookie_dict = {c["name"]: c["value"] for c in cookies.get("cookies", [])}
     secure_1psid = cookie_dict.get("__Secure-1PSID")

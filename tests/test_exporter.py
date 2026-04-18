@@ -1,4 +1,4 @@
-from webgemini_cli.exporter import (
+from gemiterm.exporter import (
     format_chat_as_markdown,
     _format_content,
     _format_code_blocks,

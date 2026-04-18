@@ -1,4 +1,4 @@
-# webgemini-cli
+# gemiterm
 
 A Python CLI tool that bridges Playwright-based Google authentication with the python-gemini-api library.
 
@@ -24,7 +24,7 @@ playwright install chromium
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         webgemini-cli                           │
+│                         gemiterm                                │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐    │
@@ -65,7 +65,7 @@ playwright install chromium
 │                     Authentication Flow                          │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                   │
-│   1. User runs 'webgemini auth'                                   │
+│   1. User runs 'gemiterm auth'                                   │
 │            │                                                      │
 │            ▼                                                      │
 │   2. Playwright launches Chromium browser (headless=False)       │
@@ -132,7 +132,7 @@ Sessions typically expire when the `__Secure-1PSIDTS` cookie expires. The CLI ch
 Before using the CLI, you need to authenticate with your Google account:
 
 ```bash
-webgemini auth
+gemiterm auth
 ```
 
 This will open a browser window for you to log in with your Google account. Cookies will be saved for future use.
@@ -142,7 +142,7 @@ This will open a browser window for you to log in with your Google account. Cook
 Verify your authentication status:
 
 ```bash
-webgemini status
+gemiterm status
 ```
 
 ### List Chats
@@ -150,7 +150,7 @@ webgemini status
 Display all your Gemini chats in a table:
 
 ```bash
-webgemini list
+gemiterm list
 ```
 
 Options:
@@ -161,7 +161,7 @@ Options:
 Fetch and display the message history of a specific conversation:
 
 ```bash
-webgemini fetch <conversation_id>
+gemiterm fetch <conversation_id>
 ```
 
 Options:
@@ -172,7 +172,7 @@ Options:
 Send a message to an existing conversation:
 
 ```bash
-webgemini continue <conversation_id> <message>
+gemiterm continue <conversation_id> <message>
 ```
 
 ### Export Chat
@@ -180,7 +180,7 @@ webgemini continue <conversation_id> <message>
 Export a conversation to a Markdown file:
 
 ```bash
-webgemini export <conversation_id>
+gemiterm export <conversation_id>
 ```
 
 Options:
@@ -195,7 +195,7 @@ Default filename pattern: `gemini-chat-{conversation_id}-{date}.md`
 Export all conversations to a directory with an index file:
 
 ```bash
-webgemini export-all
+gemiterm export-all
 ```
 
 Options:
@@ -212,18 +212,18 @@ This creates:
 Enable detailed logging for debugging:
 
 ```bash
-webgemini -v <command>
+gemiterm -v <command>
 ```
 
 ## Configuration
 
 ### Configuration Directory
 
-Default location: `~/.config/webgemini-cli/`
+Default location: `~/.config/gemiterm/`
 
 Override with environment variable:
 ```bash
-export WEBGEMINI_CONFIG_DIR=/custom/path
+export GEMITERM_CONFIG_DIR=/custom/path
 ```
 
 ### Storage File
@@ -234,8 +234,8 @@ The storage file (`storage_state.json`) contains your authentication cookies. It
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `WEBGEMINI_CONFIG_DIR` | Configuration directory | `~/.config/webgemini-cli/` |
-| `WEBGEMINI_VERBOSE` | Enable verbose logging | `false` |
+| `GEMITERM_CONFIG_DIR` | Configuration directory | `~/.config/gemiterm/` |
+| `GEMITERM_VERBOSE` | Enable verbose logging | `false` |
 
 ## Demo Script
 
@@ -254,7 +254,7 @@ If browser automation fails or is unavailable, you can manually extract cookies 
 1. Install the "EditThisCookie" extension or similar in your browser
 2. Go to https://gemini.google.com and log in
 3. Export the cookies in JSON format
-4. Save them to `~/.config/webgemini-cli/storage_state.json` with the following format:
+4. Save them to `~/.config/gemiterm/storage_state.json` with the following format:
    ```json
    {
      "cookies": [
@@ -268,23 +268,23 @@ If browser automation fails or is unavailable, you can manually extract cookies 
 
 If you see "Session expired" errors:
 
-1. Run `webgemini auth` to re-authenticate
-2. If the issue persists, delete `storage_state.json` and run `webgemini auth` again
+1. Run `gemiterm auth` to re-authenticate
+2. If the issue persists, delete `storage_state.json` and run `gemiterm auth` again
 
 ### API Errors
 
 If you encounter API errors:
 
-1. Run `webgemini status` to check your authentication state
+1. Run `gemiterm status` to check your authentication state
 2. Ensure you have a valid Google account with Gemini access
-3. Try re-authenticating with `webgemini auth`
+3. Try re-authenticating with `gemiterm auth`
 
 ### Verbose Logging
 
 Use the `-v` or `--verbose` flag to enable detailed logging for debugging:
 
 ```bash
-webgemini -v list
+gemiterm -v list
 ```
 
 ## Future Enhancements

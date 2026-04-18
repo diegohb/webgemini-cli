@@ -18,9 +18,9 @@ This guide covers development setup, project structure, and contribution guideli
 ## Project Structure
 
 ```
-webgemini-cli/
+gemiterm/
 ├── src/
-│   └── webgemini_cli/
+│   └── gemiterm/
 │       ├── __init__.py          # Package init
 │       ├── __main__.py          # Entry point
 │       ├── cli.py               # CLI commands (Click)
@@ -57,8 +57,8 @@ webgemini-cli/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-repo/webgemini-cli.git
-cd webgemini-cli
+git clone https://github.com/expert-vision-software/gemiterm.git
+cd gemiterm
 ```
 
 2. Create a virtual environment:
@@ -153,7 +153,7 @@ This handles the varied response types from the library gracefully.
 The exporter provides Markdown formatting with YAML front matter:
 
 ```python
-from webgemini_cli.exporter import format_chat_as_markdown
+from gemiterm.exporter import format_chat_as_markdown
 
 markdown = format_chat_as_markdown(
     messages=[
@@ -191,7 +191,7 @@ Hi there!
 Place tests in the `tests/` directory following the `test_*.py` naming convention:
 
 ```python
-from webgemini_cli.exporter import format_chat_as_markdown
+from gemiterm.exporter import format_chat_as_markdown
 
 class TestFormatChatAsMarkdown:
     def test_basic_conversation(self):
@@ -234,18 +234,18 @@ MAESTRO: <description>
 ### Enable Verbose Logging
 
 ```bash
-webgemini -v list
+gemiterm -v list
 ```
 
 ### Check Authentication State
 
 ```bash
-webgemini status
+gemiterm status
 ```
 
 ### Manual Cookie Inspection
 
-Cookies are stored in: `~/.config/webgemini-cli/storage_state.json`
+Cookies are stored in: `~/.config/gemiterm/storage_state.json`
 
 ## Architecture Decisions
 

@@ -1,4 +1,4 @@
-from webgemini_cli.exporter import format_chat_as_markdown
+from gemiterm.exporter import format_chat_as_markdown
 
 
 class TestFormatChatAsMarkdownExportAll:

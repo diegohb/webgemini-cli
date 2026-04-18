@@ -1,13 +1,13 @@
 import asyncio
 
-from webgemini_cli.auth_manager import load_cookies
-from webgemini_cli.gemini_client import GeminiClient
+from gemiterm.auth_manager import load_cookies
+from gemiterm.gemini_client import GeminiClient
 
 
 async def main() -> None:
     cookies = load_cookies()
     if not cookies:
-        print("Not authenticated. Run 'webgemini auth' first.")
+        print("Not authenticated. Run 'gemiterm auth' first.")
         return
 
     client = GeminiClient(cookies)

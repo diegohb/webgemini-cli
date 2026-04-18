@@ -8,15 +8,15 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
 
-from webgemini_cli.auth_manager import load_cookies, login
-from webgemini_cli.exceptions import (
+from gemiterm.auth_manager import load_cookies, login
+from gemiterm.exceptions import (
     AuthenticationError,
     CookieExpiredError,
     ConversationNotFoundError,
     GeminiAPIError,
 )
-from webgemini_cli.gemini_client import GeminiClient
-from webgemini_cli.logging_config import setup_logging
+from gemiterm.gemini_client import GeminiClient
+from gemiterm.logging_config import setup_logging
 
 console = Console()
 
@@ -70,11 +70,11 @@ def list(
         secure_1psid, secure_1psidts = load_cookies()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except AuthenticationError as e:
         console.print(f"[bold red]Not authenticated:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
         sys.exit(2)
 
     try:
@@ -82,11 +82,11 @@ def list(
         chats = client.list_chats()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except AuthenticationError as e:
         console.print(f"[bold red]Authentication error:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except GeminiAPIError as e:
         console.print(f"[bold red]API error:[/bold red] {e}")
@@ -178,11 +178,11 @@ def fetch(conversation_id: str, output_format: str, output_path: Path | None) ->
         secure_1psid, secure_1psidts = load_cookies()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except AuthenticationError as e:
         console.print(f"[bold red]Not authenticated:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
         sys.exit(2)
 
     try:
@@ -191,16 +191,16 @@ def fetch(conversation_id: str, output_format: str, output_path: Path | None) ->
     except ConversationNotFoundError as e:
         console.print(f"[bold red]Conversation not found:[/bold red] {e}")
         console.print(
-            "[bold yellow]Run 'webgemini list' to see available conversations.[/bold yellow]"
+            "[bold yellow]Run 'gemiterm list' to see available conversations.[/bold yellow]"
         )
         sys.exit(1)
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except AuthenticationError as e:
         console.print(f"[bold red]Authentication error:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except GeminiAPIError as e:
         console.print(f"[bold red]API error:[/bold red] {e}")
@@ -253,11 +253,11 @@ def continue_chat(conversation_id: str, message: str | None) -> None:
         secure_1psid, secure_1psidts = load_cookies()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except AuthenticationError as e:
         console.print(f"[bold red]Not authenticated:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
         sys.exit(2)
 
     if message and message.strip():
@@ -276,16 +276,16 @@ def continue_chat_single(
     except ConversationNotFoundError as e:
         console.print(f"[bold red]Conversation not found:[/bold red] {e}")
         console.print(
-            "[bold yellow]Run 'webgemini list' to see available conversations.[/bold yellow]"
+            "[bold yellow]Run 'gemiterm list' to see available conversations.[/bold yellow]"
         )
         sys.exit(1)
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except AuthenticationError as e:
         console.print(f"[bold red]Authentication error:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except GeminiAPIError as e:
         console.print(f"[bold red]API error:[/bold red] {e}")
@@ -324,16 +324,16 @@ def continue_chat_interactive(
             except ConversationNotFoundError as e:
                 console.print(f"[bold red]Conversation not found:[/bold red] {e}")
                 console.print(
-                    "[bold yellow]Run 'webgemini list' to see available conversations.[/bold yellow]"
+                    "[bold yellow]Run 'gemiterm list' to see available conversations.[/bold yellow]"
                 )
                 break
             except CookieExpiredError as e:
                 console.print(f"[bold red]Session expired:[/bold red] {e}")
-                console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+                console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
                 break
             except AuthenticationError as e:
                 console.print(f"[bold red]Authentication error:[/bold red] {e}")
-                console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+                console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
                 break
             except GeminiAPIError as e:
                 console.print(f"[bold red]API error:[/bold red] {e}")
@@ -376,11 +376,11 @@ def export(
         secure_1psid, secure_1psidts = load_cookies()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except AuthenticationError as e:
         console.print(f"[bold red]Not authenticated:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
         sys.exit(2)
 
     try:
@@ -389,16 +389,16 @@ def export(
     except ConversationNotFoundError as e:
         console.print(f"[bold red]Conversation not found:[/bold red] {e}")
         console.print(
-            "[bold yellow]Run 'webgemini list' to see available conversations.[/bold yellow]"
+            "[bold yellow]Run 'gemiterm list' to see available conversations.[/bold yellow]"
         )
         sys.exit(1)
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except AuthenticationError as e:
         console.print(f"[bold red]Authentication error:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except GeminiAPIError as e:
         console.print(f"[bold red]API error:[/bold red] {e}")
@@ -419,7 +419,7 @@ def export(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     if output_format == "markdown":
-        from webgemini_cli.exporter import format_chat_as_markdown
+        from gemiterm.exporter import format_chat_as_markdown
 
         title = f"Conversation: {conversation_id}"
         content = format_chat_as_markdown(
@@ -473,11 +473,11 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
         secure_1psid, secure_1psidts = load_cookies()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except AuthenticationError as e:
         console.print(f"[bold red]Not authenticated:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
         sys.exit(2)
 
     try:
@@ -485,11 +485,11 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
         all_chats = client.list_chats()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except AuthenticationError as e:
         console.print(f"[bold red]Authentication error:[/bold red] {e}")
-        console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
         sys.exit(2)
     except GeminiAPIError as e:
         console.print(f"[bold red]API error:[/bold red] {e}")
@@ -508,7 +508,7 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
             )
             sys.exit(1)
 
-    from webgemini_cli.exporter import format_chat_as_markdown
+    from gemiterm.exporter import format_chat_as_markdown
 
     exported_chats: list[dict[str, str]] = []
     failed_chats: list[tuple[str, str]] = []
@@ -586,12 +586,12 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
 
 @cli.command()
 def status() -> None:
-    from webgemini_cli.config import _get_config_dir, get_storage_state_path
+    from gemiterm.config import _get_config_dir, get_storage_state_path
 
     storage_path = get_storage_state_path()
     config_dir = _get_config_dir()
 
-    console.print("[bold]webgemini-cli Status[/bold]")
+    console.print("[bold]gemiterm Status[/bold]")
     console.print()
     console.print(f"Config directory: [cyan]{config_dir}[/cyan]")
     console.print(f"Storage file: [cyan]{storage_path}[/cyan]")
@@ -599,7 +599,7 @@ def status() -> None:
 
     if not storage_path.exists():
         console.print("[bold red]Status: Not authenticated[/bold red]")
-        console.print("[yellow]Run 'webgemini auth' to authenticate.[/yellow]")
+        console.print("[yellow]Run 'gemiterm auth' to authenticate.[/yellow]")
         sys.exit(2)
 
     try:
@@ -610,11 +610,11 @@ def status() -> None:
         console.print("[green]Cookies are valid and API connection is working.[/green]")
     except CookieExpiredError:
         console.print("[bold yellow]Status: Session expired[/bold yellow]")
-        console.print("[yellow]Run 'webgemini auth' to re-authenticate.[/yellow]")
+        console.print("[yellow]Run 'gemiterm auth' to re-authenticate.[/yellow]")
         sys.exit(2)
     except AuthenticationError:
         console.print("[bold red]Status: Authentication invalid[/bold red]")
-        console.print("[yellow]Run 'webgemini auth' to re-authenticate.[/yellow]")
+        console.print("[yellow]Run 'gemiterm auth' to re-authenticate.[/yellow]")
         sys.exit(2)
     except GeminiAPIError as e:
         console.print("[bold yellow]Status: API connection issue[/bold yellow]")
