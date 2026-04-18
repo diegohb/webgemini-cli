@@ -4,6 +4,16 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      skip_publish:
+        description: 'Skip PyPI publish (for testing)'
+        type: boolean
+        default: false
+      skip_release:
+        description: 'Skip GitHub release (for testing)'
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -39,7 +49,7 @@ jobs:
       - name: Build executable
         run: |
           pip install pyinstaller
-          pyinstaller GemiTerm.spec --distpath dist --workpath build
+          pyinstaller --onefile --name GemiTerm --add-data "src:gemiterm" src/gemiterm/__main__.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -64,18 +74,19 @@ jobs:
       - name: Build executable
         run: |
           pip install pyinstaller
-          pyinstaller GemiTerm.spec --distpath dist --workpath build
+          pyinstaller --onefile --name GemiTerm.exe --add-data "src;gemiterm" src/gemiterm/__main__.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: GemiTerm.exe
-          path: dist/GemiTerm/GemiTerm.exe
+          path: dist/GemiTerm.exe
 
   publish:
     name: Publish to PyPI
     needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_publish) }}
     permissions:
       id-token: write
       contents: read
@@ -99,6 +110,7 @@ jobs:
     name: Create Release
     needs: [build-linux, build-windows, publish]
     runs-on: ubuntu-latest
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_release) }}
     permissions:
       contents: write
 

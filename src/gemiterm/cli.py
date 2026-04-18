@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
 
+from gemiterm import __version__
 from gemiterm.auth_manager import load_cookies, login
 from gemiterm.exceptions import (
     AuthenticationError,
@@ -24,6 +25,7 @@ console = Console()
 
 @click.group()
 @click.option("-v", "--verbose", is_flag=True, help="Enable verbose logging")
+@click.version_option(version=__version__, prog_name="gemiterm")
 def cli(verbose: bool) -> None:
     if verbose:
         setup_logging(verbose=True)
