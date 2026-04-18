@@ -84,12 +84,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GemiTerm.exe
-          path: dist/GemiTerm
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: GemiTerm.exe
           path: dist/GemiTerm.exe
 
   publish:
