@@ -53,7 +53,7 @@ jobs:
       - name: Build executable
         run: |
           pip install pyinstaller
-          pyinstaller --onefile --name GemiTerm --paths "$env:LOCALAPPDATA/Programs/Python/Python312/Lib/site-packages" --add-data "src:gemiterm" --hidden-import=asyncio --hidden-import=rich --hidden-import=click --hidden-import=playwright --hidden-import=gemini_webapi --hidden-import=gemini_webapi_async src/gemiterm/__main__.py
+          pyinstaller GemiTerm.spec
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -78,7 +78,13 @@ jobs:
       - name: Build executable
         run: |
           pip install pyinstaller
-          pyinstaller --onefile --name GemiTerm.exe --paths "C:\hostedtoolcache\Python\3.12.13\x64\Lib\site-packages" --add-data "src;gemiterm" --hidden-import=asyncio --hidden-import=rich --hidden-import=click --hidden-import=playwright --hidden-import=gemini_webapi --hidden-import=gemini_webapi_async src/gemiterm/__main__.py
+          pyinstaller GemiTerm.spec
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GemiTerm.exe
+          path: dist/GemiTerm
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
