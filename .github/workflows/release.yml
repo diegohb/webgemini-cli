@@ -53,7 +53,19 @@ jobs:
       - name: Build executable
         run: |
           pip install pyinstaller
-          pyinstaller GemiTerm.spec
+          pythonPath=$(python -c "import site; print(site.getsitepackages()[0])")
+          pyinstaller --onefile --add-data "src/gemiterm:gemiterm" --paths "$pythonPath" --hidden-import=rich --hidden-import=rich.console --hidden-import=rich.progress --hidden-import=rich.table --hidden-import=rich.panel --hidden-import=rich.markdown --hidden-import=rich.syntax --hidden-import=click --hidden-import=playwright --hidden-import=gemini_webapi --hidden-import=gemini_webapi_async src/gemiterm/__main__.py
+
+      - name: Verify build
+        run: |
+          exeSize=$(stat -c%s dist/GemiTerm 2>/dev/null || stat -f%z dist/GemiTerm)
+          exeSizeMB=$((exeSize / 1024 / 1024))
+          echo "GemiTerm size: $exeSizeMB MB"
+          if [ "$exeSizeMB" -lt 20 ]; then
+            echo "ERROR: Exe is too small ($exeSizeMB MB). Dependencies may not be bundled."
+            exit 1
+          fi
+          echo "Build verification passed"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -78,7 +90,18 @@ jobs:
       - name: Build executable
         run: |
           pip install pyinstaller
-          pyinstaller GemiTerm.spec
+          $pythonPath = python -c "import site; print(site.getsitepackages()[0])"
+          pyinstaller --onefile --add-data "src/gemiterm;gemiterm" --paths "$pythonPath" --hidden-import=rich --hidden-import=rich.console --hidden-import=rich.progress --hidden-import=rich.table --hidden-import=rich.panel --hidden-import=rich.markdown --hidden-import=rich.syntax --hidden-import=click --hidden-import=playwright --hidden-import=gemini_webapi --hidden-import=gemini_webapi_async src/gemiterm/__main__.py
+
+      - name: Verify build
+        run: |
+          $exeSize = (Get-Item dist/GemiTerm.exe).Length / 1MB
+          Write-Host "GemiTerm.exe size: $exeSize MB"
+          if ($exeSize -lt 20) {
+            Write-Host "ERROR: Exe is too small ($exeSize MB). Dependencies may not be bundled."
+            exit 1
+          }
+          Write-Host "Build verification passed"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
