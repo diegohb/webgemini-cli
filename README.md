@@ -14,6 +14,11 @@ irm https://raw.githubusercontent.com/expert-vision-software/GemiTerm/main/insta
 
 This downloads the latest `GemiTerm.exe`, installs Chromium browser, and adds GemiTerm to your PATH.
 
+**Uninstall:**
+```powershell
+irm https://raw.githubusercontent.com/expert-vision-software/GemiTerm/main/install.ps1 | iex -- -uninstall
+```
+
 ### Linux
 
 Download the `GemiTerm` binary from the [latest release](https://github.com/expert-vision-software/GemiTerm/releases/latest).

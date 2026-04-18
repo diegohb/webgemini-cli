@@ -3,18 +3,51 @@ $repo = "expert-vision-software/GemiTerm"
 $exeDir = "$env:LOCALAPPDATA\GemiTerm"
 $exePath = "$exeDir\GemiTerm.exe"
 
+function Uninstall-GemiTerm {
+    Write-Host "Removing GemiTerm..."
+
+    if (Test-Path $exePath) {
+        Remove-Item $exePath -Force
+        Write-Host "  Removed $exePath"
+    }
+
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if ($userPath -like "*$exeDir*") {
+        $newPath = ($userPath -split ';' | Where-Object { $_ -notlike "*$exeDir*" }) -join ';'
+        [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+        Write-Host "  Removed $exeDir from PATH"
+    }
+
+    Write-Host "GemiTerm uninstalled successfully."
+    exit 0
+}
+
+if ($args -contains "--uninstall") {
+    Uninstall-GemiTerm
+}
+
 if (-not (Test-Path $exeDir)) {
     New-Item -ItemType Directory -Path $exeDir -Force | Out-Null
 }
 
 $apiUrl = "https://api.github.com/repos/$repo/releases/latest"
-$assets = Invoke-RestMethod $apiUrl | Select-Object -ExpandProperty assets
-$exeAsset = $assets | Where-Object { $_.name -eq 'GemiTerm.exe' }
+$response = Invoke-RestMethod $apiUrl -ErrorAction SilentlyContinue
 
-if (-not $exeAsset) {
-    Write-Error "GemiTerm.exe not found in latest release. Is the repository published yet?"
+if (-not $response -or -not $response.assets) {
+    Write-Host "No releases found. Building from source instead..."
+    Write-Host ""
+    Write-Host "To install GemiTerm:"
+    Write-Host "  1. Ensure you have Python 3.11+ and pip installed"
+    Write-Host "  2. Run: pip install gemiterm"
+    Write-Host "  3. Run: gemiterm install-browser"
+    Write-Host ""
+    Write-Host "Or download a release manually from:"
+    Write-Host "  https://github.com/$repo/releases"
     exit 1
 }
+
+$assets = $response.assets
+$exeAsset = $assets | Where-Object { $_.name -eq 'GemiTerm.exe' }
 
 Write-Host "Downloading GemiTerm..."
 Invoke-WebRequest $exeAsset.browser_download_url -OutFile $exePath
