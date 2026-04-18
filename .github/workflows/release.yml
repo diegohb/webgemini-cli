@@ -22,17 +22,10 @@ jobs:
       - name: Run tests
         run: pytest -v
 
-  build:
-    name: Build
+  build-linux:
+    name: Build (Linux)
     needs: test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            binary_name: GemiTerm
-          - os: windows-latest
-            binary_name: GemiTerm.exe
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -46,21 +39,42 @@ jobs:
       - name: Build executable
         run: |
           pip install pyinstaller
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            pyinstaller --onefile --name ${{ matrix.binary_name }} --add-data "src;gemiterm" src/gemiterm/__main__.py
-          else
-            pyinstaller --onefile --name ${{ matrix.binary_name }} --add-data "src:gemiterm" src/gemiterm/__main__.py
-          fi
+          pyinstaller --onefile --name GemiTerm --add-data "src:gemiterm" src/gemiterm/__main__.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.binary_name }}
-          path: dist/${{ matrix.binary_name }}
+          name: GemiTerm
+          path: dist/GemiTerm
+
+  build-windows:
+    name: Build (Windows)
+    needs: test
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build package
+        run: pip install build && python -m build
+
+      - name: Build executable
+        run: |
+          pip install pyinstaller
+          pyinstaller --onefile --name GemiTerm.exe --add-data "src;gemiterm" src/gemiterm/__main__.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GemiTerm.exe
+          path: dist/GemiTerm.exe
 
   publish:
     name: Publish to PyPI
-    needs: build
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -83,7 +97,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [build, publish]
+    needs: [build-linux, build-windows, publish]
     runs-on: ubuntu-latest
     permissions:
       contents: write
