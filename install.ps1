@@ -3,6 +3,29 @@ $repo = "expert-vision-software/GemiTerm"
 $exeDir = "$env:LOCALAPPDATA\GemiTerm"
 $exePath = "$exeDir\GemiTerm.exe"
 
+function Uninstall-GemiTerm {
+    Write-Host "Removing GemiTerm..."
+
+    if (Test-Path $exePath) {
+        Remove-Item $exePath -Force
+        Write-Host "  Removed $exePath"
+    }
+
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if ($userPath -like "*$exeDir*") {
+        $newPath = ($userPath -split ';' | Where-Object { $_ -notlike "*$exeDir*" }) -join ';'
+        [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+        Write-Host "  Removed $exeDir from PATH"
+    }
+
+    Write-Host "GemiTerm uninstalled successfully."
+    exit 0
+}
+
+if ($args -contains "--uninstall") {
+    Uninstall-GemiTerm
+}
+
 if (-not (Test-Path $exeDir)) {
     New-Item -ItemType Directory -Path $exeDir -Force | Out-Null
 }
