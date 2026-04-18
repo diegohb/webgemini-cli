@@ -139,7 +139,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [build-linux, build-windows, publish]
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_release) }}
     permissions:
