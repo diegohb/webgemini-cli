@@ -13,7 +13,11 @@ on:
       skip_release:
         description: 'Skip GitHub release (for testing)'
         type: boolean
-        default: false
+        default: true
+      tag:
+        description: 'Tag for release (e.g. v1.0.8) - only needed for workflow_dispatch'
+        type: string
+        default: ''
 
 jobs:
   test:
@@ -129,8 +133,18 @@ jobs:
           name: GemiTerm.exe
           path: dist
 
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ inputs.tag }}" != "" ]; then
+            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag: ${{ steps.tag.outputs.tag }}
           files: dist/*
           generate_release_notes: true
