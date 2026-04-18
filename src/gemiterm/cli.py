@@ -584,6 +584,17 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
             console.print(f"  - {cid}: {err}")
 
 
+@cli.command("install-browser", hidden=True)
+def install_browser() -> None:
+    """Install Playwright Chromium browser."""
+    from playwright.sync_api import sync_playwright
+
+    console.print("[bold cyan]Installing Chromium browser...[/bold cyan]")
+    with sync_playwright() as p:
+        p.chromium.install()
+    console.print("[bold green]Chromium installed successfully.[/bold green]")
+
+
 @cli.command()
 def status() -> None:
     from gemiterm.config import _get_config_dir, get_storage_state_path
