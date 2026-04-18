@@ -30,13 +30,21 @@ class GeminiClient:
             loop.run_until_complete(self._client.init())
         return self._client
 
-    def list_chats(self) -> list[dict[str, str]]:
+    def list_chats(self) -> list[dict[str, Any]]:
         try:
             client = self._ensure_client()
             chats = client.list_chats()
             if chats is None:
                 return []
-            return [{"id": chat.cid, "title": chat.title} for chat in chats]
+            return [
+                {
+                    "id": chat.cid,
+                    "title": chat.title,
+                    "is_pinned": getattr(chat, "is_pinned", False),
+                    "timestamp": getattr(chat, "timestamp", 0),
+                }
+                for chat in chats
+            ]
         except Exception as e:
             logger.debug(f"list_chats failed: {e}")
             raise GeminiAPIError(f"Failed to list chats: {e}")

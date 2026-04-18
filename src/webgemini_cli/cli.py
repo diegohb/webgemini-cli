@@ -42,14 +42,29 @@ async def auth() -> None:
 
 
 @cli.command()
+@click.option("-n", "--limit", default=10, help="Number of chats to display (default: 10)")
+@click.option("-o", "--offset", default=0, help="Offset for pagination")
+@click.option("--all", "fetch_all", is_flag=True, help="Fetch all cached chats")
 @click.option(
-    "-n", "--limit", default=10, help="Maximum number of chats to display (default: 10, max: 50)"
+    "--sort",
+    type=click.Choice(["recent", "oldest", "alpha"]),
+    default="recent",
+    help="Sort order (default: recent)",
 )
-def list(limit: int) -> None:
+@click.option("-s", "--search", default=None, help="Search chat titles")
+@click.option("--after", default=None, help="Show chats after ISO date (e.g., 2024-01-01)")
+@click.option("--before", default=None, help="Show chats before ISO date (e.g., 2024-01-01)")
+def list(
+    limit: int,
+    offset: int,
+    fetch_all: bool,
+    sort: str,
+    search: str | None,
+    after: str | None,
+    before: str | None,
+) -> None:
     if limit < 1:
         limit = 1
-    elif limit > 50:
-        limit = 50
 
     try:
         secure_1psid, secure_1psidts = load_cookies()
@@ -81,12 +96,62 @@ def list(limit: int) -> None:
         console.print("[yellow]No chats found.[/yellow]")
         return
 
+    effective_limit = 50 if fetch_all else limit
+    effective_limit = min(effective_limit, 50)
+
+    if sort == "recent":
+        chats = sorted(chats, key=lambda c: (not c.get("is_pinned", False), -c.get("timestamp", 0)))
+    elif sort == "oldest":
+        chats = sorted(chats, key=lambda c: (not c.get("is_pinned", False), c.get("timestamp", 0)))
+    elif sort == "alpha":
+        chats = sorted(
+            chats, key=lambda c: (not c.get("is_pinned", False), c.get("title", "").lower())
+        )
+
+    if search:
+        chats = [c for c in chats if search.lower() in c.get("title", "").lower()]
+
+    if after:
+        try:
+            after_ts = datetime.fromisoformat(after).timestamp()
+            chats = [c for c in chats if c.get("timestamp", 0) >= after_ts]
+        except ValueError:
+            console.print(
+                "[bold red]Error:[/bold red] Invalid date format for --after. Use ISO format (e.g., 2024-01-01)."
+            )
+            sys.exit(1)
+
+    if before:
+        try:
+            before_ts = datetime.fromisoformat(before).timestamp()
+            chats = [c for c in chats if c.get("timestamp", 0) <= before_ts]
+        except ValueError:
+            console.print(
+                "[bold red]Error:[/bold red] Invalid date format for --before. Use ISO format (e.g., 2024-01-01)."
+            )
+            sys.exit(1)
+
+    if offset >= len(chats):
+        console.print("[yellow]No more chats to display.[/yellow]")
+        return
+
+    paginated_chats = chats[offset : offset + effective_limit]
+
+    if not paginated_chats:
+        console.print("[yellow]No chats found matching criteria.[/yellow]")
+        return
+
     table = Table(title="Gemini Chats")
     table.add_column("ID", style="cyan")
     table.add_column("Title", style="green")
+    table.add_column("Pinned", style="yellow")
+    table.add_column("Last Updated", style="blue")
 
-    for chat in chats[:limit]:
-        table.add_row(chat["id"], chat["title"])
+    for chat in paginated_chats:
+        pin_marker = "*" if chat.get("is_pinned") else ""
+        ts = chat.get("timestamp")
+        date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M") if ts else "N/A"
+        table.add_row(chat["id"], chat["title"], pin_marker, date_str)
 
     console.print(table)
 
@@ -96,7 +161,15 @@ def list(limit: int) -> None:
 @click.option(
     "--format", "-f", "output_format", default="text", type=click.Choice(["text", "json"])
 )
-def fetch(conversation_id: str, output_format: str) -> None:
+@click.option(
+    "--path",
+    "-p",
+    "output_path",
+    type=click.Path(),
+    default=None,
+    help="File path to save fetched content (default: print to console)",
+)
+def fetch(conversation_id: str, output_format: str, output_path: Path | None) -> None:
     if not conversation_id or not conversation_id.strip():
         console.print("[bold red]Error:[/bold red] conversation_id cannot be empty.")
         sys.exit(1)
@@ -137,30 +210,43 @@ def fetch(conversation_id: str, output_format: str) -> None:
         console.print(f"[yellow]No messages found for conversation {conversation_id}.[/yellow]")
         return
 
-    if output_format == "json":
-        import json
+    if output_path:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        console.print(json.dumps(messages, indent=2))
+        if output_format == "json" or output_path.suffix == ".json":
+            content = json.dumps(messages, indent=2)
+        else:
+            lines = []
+            for msg in messages:
+                role = msg.get("role", "user")
+                content_text = msg.get("content", "")
+                lines.append(f"--- {role.upper()} ---")
+                lines.append(content_text)
+            content = "\n".join(lines)
+
+        output_path.write_text(content)
+        console.print(f"[bold green]Saved to {output_path}[/bold green]")
     else:
-        for msg in messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            console.print(
-                f"[bold {('green' if role == 'user' else 'blue')}]--- {role.upper()} ---[/]"
-            )
-            console.print(content)
-            console.print()
+        if output_format == "json":
+            console.print(json.dumps(messages, indent=2))
+        else:
+            for msg in messages:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                console.print(
+                    f"[bold {('green' if role == 'user' else 'blue')}]--- {role.upper()} ---[/]"
+                )
+                console.print(content)
+                console.print()
 
 
-@cli.command()
+@cli.command(name="continue")
 @click.argument("conversation_id")
-@click.argument("message")
-def continue_chat(conversation_id: str, message: str) -> None:
+@click.argument("message", required=False)
+def continue_chat(conversation_id: str, message: str | None) -> None:
     if not conversation_id or not conversation_id.strip():
         console.print("[bold red]Error:[/bold red] conversation_id cannot be empty.")
-        sys.exit(1)
-    if not message or not message.strip():
-        console.print("[bold red]Error:[/bold red] message cannot be empty.")
         sys.exit(1)
 
     try:
@@ -174,6 +260,15 @@ def continue_chat(conversation_id: str, message: str) -> None:
         console.print("[bold yellow]Run 'webgemini auth' to authenticate.[/bold yellow]")
         sys.exit(2)
 
+    if message and message.strip():
+        continue_chat_single(conversation_id, message, secure_1psid, secure_1psidts)
+    else:
+        continue_chat_interactive(conversation_id, secure_1psid, secure_1psidts)
+
+
+def continue_chat_single(
+    conversation_id: str, message: str, secure_1psid: str, secure_1psidts: str | None
+) -> None:
     try:
         client = GeminiClient(secure_1psid, secure_1psidts)
         response = client.continue_chat(conversation_id, message)
@@ -195,6 +290,62 @@ def continue_chat(conversation_id: str, message: str) -> None:
     except GeminiAPIError as e:
         console.print(f"[bold red]API error:[/bold red] {e}")
         sys.exit(1)
+
+
+def continue_chat_interactive(
+    conversation_id: str, secure_1psid: str, secure_1psidts: str | None
+) -> None:
+    try:
+        client = GeminiClient(secure_1psid, secure_1psidts)
+    except Exception as e:
+        console.print(f"[bold red]Failed to initialize client:[/bold red] {e}")
+        sys.exit(1)
+
+    console.print(f"[bold cyan]Interactive chat session started.[/bold cyan]")
+    console.print("[dim]Type your message and press Enter to send.[/dim]")
+    console.print("[dim]Type /exit or press Ctrl+C to end the session.[/dim]")
+    console.print()
+
+    while True:
+        try:
+            user_input = console.input("[bold green]>[/bold green] ")
+
+            if user_input.strip().lower() == "/exit":
+                console.print("[bold cyan]Ending chat session...[/bold cyan]")
+                break
+
+            if not user_input.strip():
+                continue
+
+            try:
+                response = client.continue_chat(conversation_id, user_input)
+                console.print(f"[bold blue]Response:[/bold blue] {response}")
+                console.print()
+            except ConversationNotFoundError as e:
+                console.print(f"[bold red]Conversation not found:[/bold red] {e}")
+                console.print(
+                    "[bold yellow]Run 'webgemini list' to see available conversations.[/bold yellow]"
+                )
+                break
+            except CookieExpiredError as e:
+                console.print(f"[bold red]Session expired:[/bold red] {e}")
+                console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+                break
+            except AuthenticationError as e:
+                console.print(f"[bold red]Authentication error:[/bold red] {e}")
+                console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
+                break
+            except GeminiAPIError as e:
+                console.print(f"[bold red]API error:[/bold red] {e}")
+                console.print("[dim]Try sending another message or /exit to quit.[/dim]")
+                console.print()
+
+        except KeyboardInterrupt:
+            console.print("\n[bold yellow]Session ended by user.[/bold yellow]")
+            break
+        except EOFError:
+            console.print("\n[bold yellow]Session ended.[/bold yellow]")
+            break
 
 
 @cli.command()
