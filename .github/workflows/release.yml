@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: |
+          pip install -e ".[dev]"
+          playwright install chromium
+          playwright install-deps
+      - name: Run tests
+        run: pytest -v
+
+  build-and-release:
+    name: Build & Release
+    needs: test
+    runs-on: ${{ matrix.os }}
+    permissions:
+      id-token: write
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary_name: GemiTerm
+          - os: windows-latest
+            binary_name: GemiTerm.exe
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build package
+        run: pip install build && python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.OIDC_PYPI_TOKEN }}
+
+      - name: Build executable
+        run: pip install pyinstaller && pyinstaller --onefile --name ${{ matrix.binary_name }} --add-data "src;webgemini_cli" src/webgemini_cli/__main__.py
+        shell: bash
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.binary_name }}
+          generate_release_notes: true

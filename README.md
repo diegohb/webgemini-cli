@@ -1,129 +1,47 @@
-# gemiterm
+# GemiTerm
 
-A Python CLI tool that bridges Playwright-based Google authentication with the python-gemini-api library.
+A Python CLI tool that bridges Playwright-based Google authentication with the gemini-webapi library.
 
-## Prerequisites
+## Installation
 
-- **Python**: Version 3.11 or higher
-- **Chromium Browser**: Required by Playwright for authentication
-- **Google Account**: A Google account with access to Gemini (https://gemini.google.com)
+### Windows (standalone - no Python required)
 
-### Installation
+Open PowerShell and run:
+
+```powershell
+irm https://raw.githubusercontent.com/expert-vision-software/GemiTerm/main/install.ps1 | iex
+```
+
+This downloads the latest `GemiTerm.exe`, installs Chromium browser, and adds GemiTerm to your PATH.
+
+### Linux
+
+Download the `GemiTerm` binary from the [latest release](https://github.com/expert-vision-software/GemiTerm/releases/latest).
+
+```bash
+chmod +x GemiTerm
+./GemiTerm install-browser  # install Chromium if needed
+```
+
+### pip/pipx (requires Python)
+
+```bash
+pip install gemiterm       # global install
+pipx install gemiterm      # global install (isolated)
+pipx run gemiterm auth     # temporary run (npx equivalent)
+```
+
+### From Source
 
 ```bash
 pip install -e .
 playwright install chromium
 ```
 
-> **Note**: If you encounter issues with Playwright, ensure you have the necessary system dependencies:
-> ```bash
-> playwright install-deps
-> ```
+## Prerequisites
 
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         gemiterm                                │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐    │
-│  │     CLI      │────▶│   Gemini     │────▶│    Auth      │    │
-│  │   (click)    │     │   Client     │     │   Manager    │    │
-│  └──────────────┘     └──────────────┘     └──────────────┘    │
-│         │                    │                    │            │
-│         │                    │                    ▼            │
-│         │                    │            ┌──────────────┐    │
-│         │                    │            │   Playwright │    │
-│         │                    │            │   (Browser)  │    │
-│         │                    │            └──────────────┘    │
-│         │                    │                    │            │
-│         ▼                    ▼                    ▼            │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐    │
-│  │   Rich UI    │     │    python    │     │   Cookie     │    │
-│  │  (tables,    │     │   -gemini    │     │    Store     │    │
-│  │   progress)  │     │     -api     │     │  (JSON file) │    │
-│  └──────────────┘     └──────────────┘     └──────────────┘    │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Component Overview
-
-| Component | File | Purpose |
-|-----------|------|---------|
-| **CLI** | `cli.py` | Command-line interface using Click framework |
-| **GeminiClient** | `gemini_client.py` | Interacts with Gemini API using cookies |
-| **AuthManager** | `auth_manager.py` | Handles Playwright browser automation for login |
-| **Exporter** | `exporter.py` | Formats conversations as Markdown/JSON |
-| **Config** | `config.py` | Manages configuration directories and paths |
-
-## Authentication Flow
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                     Authentication Flow                          │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                   │
-│   1. User runs 'gemiterm auth'                                   │
-│            │                                                      │
-│            ▼                                                      │
-│   2. Playwright launches Chromium browser (headless=False)       │
-│            │                                                      │
-│            ▼                                                      │
-│   3. Navigate to https://gemini.google.com                        │
-│            │                                                      │
-│            ▼                                                      │
-│   4. User manually logs in with Google credentials               │
-│            │                                                      │
-│            ▼                                                      │
-│   5. Script polls for required cookies:                          │
-│       - __Secure-1PSID                                            │
-│       - __Secure-1PSIDTS                                          │
-│            │                                                      │
-│            ▼                                                      │
-│   6. Cookies captured and saved to storage_state.json             │
-│            │                                                      │
-│            ▼                                                      │
-│   7. GeminiClient uses cookies for API requests                   │
-│                                                                   │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-### Cookie Format
-
-The python-gemini-api library expects cookies in a specific JSON format:
-
-```json
-{
-  "cookies": [
-    {
-      "name": "__Secure-1PSID",
-      "value": "your_value_here",
-      "domain": ".google.com",
-      "path": "/",
-      "expires": -1,
-      "httpOnly": true,
-      "secure": true,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "__Secure-1PSIDTS",
-      "value": "your_value_here",
-      "domain": ".google.com",
-      "path": "/",
-      "expires": 1234567890,
-      "httpOnly": true,
-      "secure": true,
-      "sameSite": "Lax"
-    }
-  ]
-}
-```
-
-### Session Expiry
-
-Sessions typically expire when the `__Secure-1PSIDTS` cookie expires. The CLI checks cookie freshness and will prompt you to re-authenticate when the session is close to expiry (within 7 days of expiration).
+- **Chromium Browser**: GemiTerm will attempt to use your system Chrome if available, otherwise it installs Playwright's Chromium automatically.
+- **Google Account**: A Google account with access to Gemini (https://gemini.google.com)
 
 ## Usage
 
@@ -188,8 +106,6 @@ Options:
 - `-f, --format FORMAT`: Export format - `markdown` (default) or `json`
 - `--include-metadata`: Include full metadata in export
 
-Default filename pattern: `gemini-chat-{conversation_id}-{date}.md`
-
 ### Export All Chats
 
 Export all conversations to a directory with an index file:
@@ -202,10 +118,6 @@ Options:
 - `-o, --output-dir PATH`: Directory to export to (default: `./exports`)
 - `--since ISO_DATE`: Export only conversations newer than this date
 - `--include-metadata`: Include full metadata in each export
-
-This creates:
-- Individual Markdown files for each conversation
-- An `_index.md` file with links to all exported chats
 
 ### Verbose Logging
 
@@ -236,14 +148,6 @@ The storage file (`storage_state.json`) contains your authentication cookies. It
 |----------|-------------|---------|
 | `GEMITERM_CONFIG_DIR` | Configuration directory | `~/.config/gemiterm/` |
 | `GEMITERM_VERBOSE` | Enable verbose logging | `false` |
-
-## Demo Script
-
-A demo script is available at `scripts/demo.py` that demonstrates the library's functionality by listing 5 most recent chats and appending "Hello from the API" to the most recent chat.
-
-```bash
-python scripts/demo.py
-```
 
 ## Troubleshooting
 
