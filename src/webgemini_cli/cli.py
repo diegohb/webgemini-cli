@@ -52,7 +52,7 @@ def list(limit: int) -> None:
         limit = 50
 
     try:
-        cookies = load_cookies()
+        secure_1psid, secure_1psidts = load_cookies()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
         console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
@@ -63,7 +63,7 @@ def list(limit: int) -> None:
         sys.exit(2)
 
     try:
-        client = GeminiClient(cookies)
+        client = GeminiClient(secure_1psid, secure_1psidts)
         chats = client.list_chats()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
@@ -102,7 +102,7 @@ def fetch(conversation_id: str, output_format: str) -> None:
         sys.exit(1)
 
     try:
-        cookies = load_cookies()
+        secure_1psid, secure_1psidts = load_cookies()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
         console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
@@ -113,7 +113,7 @@ def fetch(conversation_id: str, output_format: str) -> None:
         sys.exit(2)
 
     try:
-        client = GeminiClient(cookies)
+        client = GeminiClient(secure_1psid, secure_1psidts)
         messages = client.fetch_chat(conversation_id)
     except ConversationNotFoundError as e:
         console.print(f"[bold red]Conversation not found:[/bold red] {e}")
@@ -164,7 +164,7 @@ def continue_chat(conversation_id: str, message: str) -> None:
         sys.exit(1)
 
     try:
-        cookies = load_cookies()
+        secure_1psid, secure_1psidts = load_cookies()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
         console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
@@ -175,7 +175,7 @@ def continue_chat(conversation_id: str, message: str) -> None:
         sys.exit(2)
 
     try:
-        client = GeminiClient(cookies)
+        client = GeminiClient(secure_1psid, secure_1psidts)
         response = client.continue_chat(conversation_id, message)
         console.print(f"[bold green]Response:[/bold green] {response}")
     except ConversationNotFoundError as e:
@@ -222,7 +222,7 @@ def export(
         sys.exit(1)
 
     try:
-        cookies = load_cookies()
+        secure_1psid, secure_1psidts = load_cookies()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
         console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
@@ -233,7 +233,7 @@ def export(
         sys.exit(2)
 
     try:
-        client = GeminiClient(cookies)
+        client = GeminiClient(secure_1psid, secure_1psidts)
         messages = client.fetch_chat(conversation_id)
     except ConversationNotFoundError as e:
         console.print(f"[bold red]Conversation not found:[/bold red] {e}")
@@ -262,6 +262,8 @@ def export(
         extension = "md" if output_format == "markdown" else "json"
         default_filename = f"gemini-chat-{conversation_id}-{date_str}.{extension}"
         output_path = Path.cwd() / default_filename
+    else:
+        output_path = Path(output_path)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -317,7 +319,7 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
     output_path.mkdir(parents=True, exist_ok=True)
 
     try:
-        cookies = load_cookies()
+        secure_1psid, secure_1psidts = load_cookies()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
         console.print("[bold yellow]Run 'webgemini auth' to re-authenticate.[/bold yellow]")
@@ -328,7 +330,7 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
         sys.exit(2)
 
     try:
-        client = GeminiClient(cookies)
+        client = GeminiClient(secure_1psid, secure_1psidts)
         all_chats = client.list_chats()
     except CookieExpiredError as e:
         console.print(f"[bold red]Session expired:[/bold red] {e}")
@@ -450,8 +452,8 @@ def status() -> None:
         sys.exit(2)
 
     try:
-        cookies = load_cookies()
-        client = GeminiClient(cookies)
+        secure_1psid, secure_1psidts = load_cookies()
+        client = GeminiClient(secure_1psid, secure_1psidts)
         client.list_chats()
         console.print("[bold green]Status: Authenticated and connected[/bold green]")
         console.print("[green]Cookies are valid and API connection is working.[/green]")

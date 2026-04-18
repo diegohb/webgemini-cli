@@ -23,7 +23,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "python-gemini-api",
+    "gemini-webapi>=1.21.0",
     "playwright",
     "click",
     "rich",
@@ -36,7 +36,7 @@ dev = [
 ]
 
 [project.scripts]
-webgemini = "webgemini_cli.cli:cli"
+webgemini = "webgemini_cli.__main__:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -58,7 +58,7 @@ async def login() -> list[dict]:
     return [dict(c) for c in cookies]
 
 
-def load_cookies() -> dict:
+def load_cookies() -> tuple[str, str | None]:
     storage_path = get_storage_state_path()
     if not storage_path.exists():
         raise AuthenticationError(
@@ -71,9 +71,19 @@ def load_cookies() -> dict:
         raise CookieExpiredError(
             "Session appears to be expired. Please run 'webgemini auth' to re-authenticate."
         )
-    return {c["name"]: c["value"] for c in cookies.get("cookies", [])}
+    cookie_dict = {c["name"]: c["value"] for c in cookies.get("cookies", [])}
+    secure_1psid = cookie_dict.get("__Secure-1PSID")
+    secure_1psidts = cookie_dict.get("__Secure-1PSIDTS")
+    if not secure_1psid:
+        raise AuthenticationError("Missing required cookie __Secure-1PSID")
+    return (secure_1psid, secure_1psidts)
 
 
-async def refresh_cookies() -> dict:
+async def refresh_cookies() -> tuple[str, str | None]:
     cookies = await login()
-    return {c["name"]: c["value"] for c in cookies}
+    cookie_dict = {c["name"]: c["value"] for c in cookies}
+    secure_1psid = cookie_dict.get("__Secure-1PSID")
+    secure_1psidts = cookie_dict.get("__Secure-1PSIDTS")
+    if not secure_1psid:
+        raise AuthenticationError("Missing required cookie __Secure-1PSID")
+    return (secure_1psid, secure_1psidts)

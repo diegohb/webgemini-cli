@@ -31,6 +31,8 @@ def format_chat_as_markdown(
         role = msg.get("role", "user")
         content = msg.get("content", "")
         timestamp = msg.get("timestamp")
+        images = msg.get("images")
+        citations = msg.get("citations")
 
         if role == "user":
             lines.append("**User:**")
@@ -43,6 +45,26 @@ def format_chat_as_markdown(
         lines.append("")
         lines.append(_format_content(content))
         lines.append("")
+
+        if images:
+            lines.append("")
+            lines.append("**Images:**")
+            for img in images:
+                if isinstance(img, dict):
+                    lines.append(f"- {img.get('title', 'Image')}: {img.get('url', '')}")
+                else:
+                    lines.append(f"- {img}")
+            lines.append("")
+
+        if citations:
+            lines.append("")
+            lines.append("**Citations:**")
+            for cit in citations:
+                if isinstance(cit, dict):
+                    lines.append(f"- [{cit.get('title', 'Source')}]({cit.get('url', '')})")
+                else:
+                    lines.append(f"- {cit}")
+            lines.append("")
 
     return "\n".join(lines)
 
