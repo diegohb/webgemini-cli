@@ -592,14 +592,22 @@ def install_browser() -> None:
     """Install Playwright Chromium browser."""
     import subprocess
     import sys
+    import os
 
     console.print("[bold cyan]Installing Chromium browser...[/bold cyan]")
 
-    cmd = [sys.executable, "-m", "playwright", "install", "chromium"]
     if getattr(sys, "frozen", False):
-        cmd = ["playwright", "install", "chromium"]
+        python_exe = os.path.join(sys.base_prefix, "python.exe")
+        if not os.path.exists(python_exe):
+            python_exe = "py"
+            cmd = [python_exe, "-3", "-m", "playwright", "install", "chromium"]
+        else:
+            cmd = [python_exe, "-m", "playwright", "install", "chromium"]
+    else:
+        python_exe = sys.executable
+        cmd = [python_exe, "-m", "playwright", "install", "chromium"]
 
-    result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         console.print(f"[bold red]Failed to install Chromium:[/bold red]")
         console.print(result.stderr)
