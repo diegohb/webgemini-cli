@@ -1,19 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_all
-
-datas = [('src', 'gemiterm')]
-binaries = []
-hiddenimports = ['asyncio', 'rich', 'click', 'playwright', 'gemini_webapi', 'gemini_webapi_async']
-tmp_ret = collect_all('rich')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
     ['src\\gemiterm\\__main__.py'],
-    pathex=[],
-    binaries=binaries,
-    datas=datas,
-    hiddenimports=hiddenimports,
+    pathex=['C:\\Python314\\Lib\\site-packages'],
+    binaries=[],
+    datas=[('src', 'gemiterm')],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
