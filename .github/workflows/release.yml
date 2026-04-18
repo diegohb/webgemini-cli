@@ -52,8 +52,13 @@ jobs:
           password: ${{ secrets.OIDC_PYPI_TOKEN }}
 
       - name: Build executable
-        run: pip install pyinstaller && pyinstaller --onefile --name ${{ matrix.binary_name }} --add-data "src;webgemini_cli" src/webgemini_cli/__main__.py
-        shell: bash
+        run: |
+          pip install pyinstaller
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            pyinstaller --onefile --name ${{ matrix.binary_name }} --add-data "src;gemiterm" src/gemiterm/__main__.py
+          else
+            pyinstaller --onefile --name ${{ matrix.binary_name }} --add-data "src:gemiterm" src/gemiterm/__main__.py
+          fi
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
