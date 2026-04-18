@@ -590,11 +590,20 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
 @cli.command("install-browser", hidden=True)
 def install_browser() -> None:
     """Install Playwright Chromium browser."""
-    from playwright.sync_api import sync_playwright
+    import subprocess
+    import sys
 
     console.print("[bold cyan]Installing Chromium browser...[/bold cyan]")
-    with sync_playwright() as p:
-        p.chromium.install()
+
+    cmd = [sys.executable, "-m", "playwright", "install", "chromium"]
+    if getattr(sys, "frozen", False):
+        cmd = ["playwright", "install", "chromium"]
+
+    result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+    if result.returncode != 0:
+        console.print(f"[bold red]Failed to install Chromium:[/bold red]")
+        console.print(result.stderr)
+        raise click.ClickException("Chromium installation failed")
     console.print("[bold green]Chromium installed successfully.[/bold green]")
 
 
