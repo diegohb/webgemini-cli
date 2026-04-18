@@ -1,5 +1,8 @@
 import asyncio
 import json
+import os
+import shutil
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -590,22 +593,19 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
 @cli.command("install-browser", hidden=True)
 def install_browser() -> None:
     """Install Playwright Chromium browser."""
-    import subprocess
-    import sys
-    import os
-
     console.print("[bold cyan]Installing Chromium browser...[/bold cyan]")
 
     if getattr(sys, "frozen", False):
-        python_exe = os.path.join(sys.base_prefix, "python.exe")
-        if not os.path.exists(python_exe):
-            python_exe = "py"
-            cmd = [python_exe, "-3", "-m", "playwright", "install", "chromium"]
+        py_cmd = shutil.which("py")
+        if py_cmd:
+            cmd = [py_cmd, "-3", "-m", "playwright", "install", "chromium"]
         else:
+            python_exe = shutil.which("python") or shutil.which("python3")
+            if not python_exe:
+                python_exe = os.path.join(sys.base_prefix, "python.exe")
             cmd = [python_exe, "-m", "playwright", "install", "chromium"]
     else:
-        python_exe = sys.executable
-        cmd = [python_exe, "-m", "playwright", "install", "chromium"]
+        cmd = [sys.executable, "-m", "playwright", "install", "chromium"]
 
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
