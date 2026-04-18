@@ -50,9 +50,11 @@ jobs:
       - name: Build package
         run: pip install build && python -m build
 
+      - name: Install dependencies
+        run: pip install rich click playwright gemini-webapi pyinstaller
+
       - name: Build executable
         run: |
-          pip install pyinstaller
           pythonPath=$(python -c "import site; print(site.getsitepackages()[0])")
           pyinstaller --onefile --name GemiTerm --add-data "src/gemiterm:gemiterm" --paths "$pythonPath" --hidden-import=rich --hidden-import=rich.console --hidden-import=rich.progress --hidden-import=rich.table --hidden-import=rich.panel --hidden-import=rich.markdown --hidden-import=rich.syntax --hidden-import=click --hidden-import=playwright --hidden-import=gemini_webapi --hidden-import=gemini_webapi_async src/gemiterm/__main__.py
 
@@ -87,9 +89,11 @@ jobs:
       - name: Build package
         run: pip install build && python -m build
 
+      - name: Install dependencies
+        run: pip install rich click playwright gemini-webapi pyinstaller
+
       - name: Build executable
         run: |
-          pip install pyinstaller
           $pythonPath = python -c "import site; print(site.getsitepackages()[0])"
           pyinstaller --onefile --name GemiTerm --add-data "src/gemiterm;gemiterm" --paths "$pythonPath" --hidden-import=rich --hidden-import=rich.console --hidden-import=rich.progress --hidden-import=rich.table --hidden-import=rich.panel --hidden-import=rich.markdown --hidden-import=rich.syntax --hidden-import=click --hidden-import=playwright --hidden-import=gemini_webapi --hidden-import=gemini_webapi_async src/gemiterm/__main__.py
 
