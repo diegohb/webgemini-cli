@@ -7,6 +7,7 @@ a = Analysis(
     binaries=[],
     datas=[],
     hiddenimports=[
+        'asyncio',
         'rich',
         'rich.console',
         'rich.progress',

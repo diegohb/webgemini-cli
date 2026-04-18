@@ -70,7 +70,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GemiTerm.exe
-          path: dist/GemiTerm
+          path: dist/GemiTerm/GemiTerm.exe
 
   publish:
     name: Publish to PyPI
