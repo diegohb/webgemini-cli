@@ -29,10 +29,10 @@ def cli(verbose: bool) -> None:
 
 
 @cli.command()
-async def auth() -> None:
+def auth() -> None:
     console.print("[bold blue]Starting authentication...[/bold blue]")
     try:
-        cookies = await login()
+        cookies = asyncio.run(login())
         console.print(
             f"[bold green]Authentication successful![/bold green] Captured {len(cookies)} cookies."
         )

@@ -1,9 +1,40 @@
 import json
+import os
+import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from playwright.async_api import async_playwright
 
 from gemiterm.config import ensure_config_dir, get_storage_state_path
+
+
+def _get_browser_executable() -> str | None:
+    possible_paths = []
+
+    local_browsers = Path.home() / "AppData" / "Local" / "ms-playwright"
+    if local_browsers.exists():
+        for rev in sorted(local_browsers.glob("chromium-*"), reverse=True):
+            exe = rev / "chrome-win64" / "chrome.exe"
+            if exe.exists():
+                possible_paths.append(exe)
+
+    if getattr(sys, "frozen", False):
+        internal_browsers = (
+            Path(sys._MEIPASS) / "playwright" / "driver" / "package" / ".local-browsers"
+        )
+        if internal_browsers.exists():
+            for rev in sorted(internal_browsers.glob("chromium-*"), reverse=True):
+                exe = rev / "chrome-win64" / "chrome.exe"
+                if exe.exists():
+                    possible_paths.append(exe)
+
+    for path in possible_paths:
+        if path.exists():
+            return str(path)
+    return None
+
+
 from gemiterm.exceptions import AuthenticationError, CookieExpiredError
 
 REQUIRED_COOKIES = {"__Secure-1PSID", "__Secure-1PSIDTS"}
@@ -36,7 +67,8 @@ def check_cookie_freshness(cookies: dict) -> bool:
 async def login() -> list[dict]:
     ensure_config_dir()
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        executable = _get_browser_executable()
+        browser = await p.chromium.launch(headless=False, executable_path=executable)
         context = await browser.new_context()
         page = await context.new_page()
 
