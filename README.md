@@ -1,6 +1,6 @@
 # GemiTerm
 
-A Python CLI tool that bridges Playwright-based Google authentication with the gemini-webapi library.
+Access and manage your Gemini web chats from the command line. GemiTerm bridges Playwright-based Google authentication to let you list, fetch, export, and continue conversations trapped in the Gemini web interface — without a standard API.
 
 ## Installation
 
