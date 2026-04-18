@@ -639,6 +639,34 @@ def install_browser() -> None:
         console.print("[bold green]Chromium installed successfully.[/bold green]")
 
 
+def _check_existing_browser() -> bool:
+    """Check if Edge or Chrome is available as a fallback browser."""
+    from pathlib import Path
+
+    edge_paths = [
+        Path("C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"),
+        Path("C:/Program Files/Microsoft/Edge/Application/msedge.exe"),
+        Path(os.path.expandvars("%ProgramFiles(x86)%/Microsoft/Edge/Application/msedge.exe")),
+        Path(os.path.expandvars("%ProgramFiles%/Microsoft/Edge/Application/msedge.exe")),
+    ]
+    for edge_path in edge_paths:
+        if edge_path.exists():
+            console.print(f"[green]Found Edge at {edge_path}[/green]")
+            return True
+
+    chrome_paths = [
+        Path("C:/Program Files/Google/Chrome/Application/chrome.exe"),
+        Path(os.path.expandvars("%ProgramFiles%/Google/Chrome/Application/chrome.exe")),
+        Path(os.path.expanduser("~/AppData/Local/Google/Chrome/Application/chrome.exe")),
+    ]
+    for chrome_path in chrome_paths:
+        if chrome_path.exists():
+            console.print(f"[green]Found Chrome at {chrome_path}[/green]")
+            return True
+
+    return False
+
+
 def _download_chromium_fallback() -> None:
     """Download Chromium directly using PowerShell when Python is not available."""
     import zipfile
@@ -652,28 +680,45 @@ def _download_chromium_fallback() -> None:
     if chrome_exe.exists():
         return
 
-    console.print("[cyan]Downloading Chromium (~200MB, may take several minutes)...[/cyan]")
+    if _check_existing_browser():
+        console.print("[yellow]Using system Edge/Chrome instead of downloading Chromium.[/yellow]")
+        return
+
+    console.print("[cyan]No Edge or Chrome found. Downloading Chromium (~200MB)...[/cyan]")
 
     tmp_dir = playwright_dir / "tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     zip_path = tmp_dir / "chromium.zip"
 
-    url = "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/1312/chrome-win.zip"
+    urls = [
+        "https://playwright.azureedge.net/builds/chromium/1312/chrome-win.zip",
+        "https://playwright.downloads.microsoft.com/download/chromium/1312/chrome-win.zip",
+        "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/1312/chrome-win.zip",
+    ]
 
-    ps_script = f'''
-    $ProgressPreference = 'SilentlyContinue'
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri "{url}" -OutFile "{zip_path}" -UseBasicParsing
-    '''
-    result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"Failed to download Chromium: {result.stderr}")
-
-    console.print("[cyan]Extracting Chromium...[/cyan]")
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(playwright_dir)
+    for url in urls:
+        console.print(f"[cyan]Trying {url}...[/cyan]")
+        ps_script = f'''
+        $ProgressPreference = 'SilentlyContinue'
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri "{url}" -OutFile "{zip_path}" -UseBasicParsing
+        '''
+        result = subprocess.run(
+            ["powershell", "-Command", ps_script], capture_output=True, text=True, timeout=300
+        )
+        if result.returncode == 0:
+            try:
+                with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                    zip_ref.extractall(playwright_dir)
+                sh.rmtree(tmp_dir, ignore_errors=True)
+                console.print("[green]Chromium downloaded successfully.[/green]")
+                return
+            except Exception as e:
+                console.print(f"[yellow]Extraction failed: {e}[/yellow]")
+                continue
 
     sh.rmtree(tmp_dir, ignore_errors=True)
+    raise RuntimeError("Failed to download Chromium from all sources")
 
 
 @cli.command()
