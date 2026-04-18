@@ -22,13 +22,10 @@ jobs:
       - name: Run tests
         run: pytest -v
 
-  build-and-release:
-    name: Build & Release
+  build:
+    name: Build
     needs: test
     runs-on: ${{ matrix.os }}
-    permissions:
-      id-token: write
-      contents: write
     strategy:
       matrix:
         include:
@@ -46,11 +43,6 @@ jobs:
       - name: Build package
         run: pip install build && python -m build
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.OIDC_PYPI_TOKEN }}
-
       - name: Build executable
         run: |
           pip install pyinstaller
@@ -60,8 +52,59 @@ jobs:
             pyinstaller --onefile --name ${{ matrix.binary_name }} --add-data "src:gemiterm" src/gemiterm/__main__.py
           fi
 
-      - name: Upload to Release
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary_name }}
+          path: dist/${{ matrix.binary_name }}
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build package
+        run: pip install build && python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.OIDC_PYPI_TOKEN }}
+
+  release:
+    name: Create Release
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: GemiTerm
+          path: dist
+
+      - name: Download Windows binary
+        uses: actions/download-artifact@v4
+        with:
+          name: GemiTerm.exe
+          path: dist
+
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/${{ matrix.binary_name }}
+          files: dist/*
           generate_release_notes: true
