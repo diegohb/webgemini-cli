@@ -1,12 +1,21 @@
 import json
-import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from playwright.async_api import async_playwright
 
-from gemiterm.config import ensure_config_dir, get_storage_state_path
+from gemiterm.config import (
+    ensure_config_dir,
+    get_profile_path,
+    get_default_profile_name,
+    list_profiles,
+    set_default_profile_name,
+)
+from gemiterm.exceptions import AuthenticationError, CookieExpiredError
+
+REQUIRED_COOKIES = {"__Secure-1PSID", "__Secure-1PSIDTS"}
+COOKIE_EXPIRY_THRESHOLD_DAYS = 7
 
 
 def _get_browser_executable() -> str | None:
@@ -35,12 +44,6 @@ def _get_browser_executable() -> str | None:
     return None
 
 
-from gemiterm.exceptions import AuthenticationError, CookieExpiredError
-
-REQUIRED_COOKIES = {"__Secure-1PSID", "__Secure-1PSIDTS"}
-COOKIE_EXPIRY_THRESHOLD_DAYS = 7
-
-
 def validate_cookies(cookies: dict) -> bool:
     if not cookies or "cookies" not in cookies:
         return False
@@ -59,13 +62,16 @@ def check_cookie_freshness(cookies: dict) -> bool:
             if expires > 0:
                 expiry_date = datetime.fromtimestamp(expires)
                 threshold = datetime.now() + timedelta(days=COOKIE_EXPIRY_THRESHOLD_DAYS)
-                if expiry_date < threshold:
-                    return False
-    return True
+                return expiry_date >= threshold
+    return False
 
 
-async def login() -> list[dict]:
+async def login(profile_name: str | None = None) -> list[dict]:
+    if profile_name is None:
+        profile_name = get_default_profile_name()
     ensure_config_dir()
+    profile_path = get_profile_path(profile_name)
+    profile_path.parent.mkdir(parents=True, exist_ok=True)
     async with async_playwright() as p:
         executable = _get_browser_executable()
         browser = await p.chromium.launch(headless=False, executable_path=executable)
@@ -84,14 +90,18 @@ async def login() -> list[dict]:
             await page.wait_for_timeout(500)
 
         cookies = await context.cookies()
-        await context.storage_state(path=get_storage_state_path())
+        await context.storage_state(path=profile_path)
         await browser.close()
 
+    if not list_profiles():
+        set_default_profile_name(profile_name)
     return [dict(c) for c in cookies]
 
 
-def load_cookies() -> tuple[str, str | None]:
-    storage_path = get_storage_state_path()
+def load_cookies(profile_name: str | None = None) -> tuple[str, str | None]:
+    if profile_name is None:
+        profile_name = get_default_profile_name()
+    storage_path = get_profile_path(profile_name)
     if not storage_path.exists():
         raise AuthenticationError(
             f"Authentication required. Run 'gemiterm auth' to authenticate. "
@@ -111,11 +121,81 @@ def load_cookies() -> tuple[str, str | None]:
     return (secure_1psid, secure_1psidts)
 
 
-async def refresh_cookies() -> tuple[str, str | None]:
-    cookies = await login()
+async def refresh_cookies(profile_name: str | None = None) -> tuple[str, str | None]:
+    cookies = await login(profile_name)
     cookie_dict = {c["name"]: c["value"] for c in cookies}
     secure_1psid = cookie_dict.get("__Secure-1PSID")
     secure_1psidts = cookie_dict.get("__Secure-1PSIDTS")
     if not secure_1psid:
         raise AuthenticationError("Missing required cookie __Secure-1PSID")
     return (secure_1psid, secure_1psidts)
+
+
+def get_profile_status(profile_name: str) -> dict:
+    profile_path = get_profile_path(profile_name)
+    exists = profile_path.exists()
+    if not exists:
+        return {
+            "exists": False,
+            "is_active": False,
+            "expires_at": None,
+            "needs_refresh": True,
+        }
+    try:
+        with open(profile_path) as f:
+            cookies = json.load(f)
+        is_active = check_cookie_freshness(cookies)
+        expires_at = None
+        needs_refresh = not is_active
+        cookie_list = cookies.get("cookies", [])
+        for cookie in cookie_list:
+            if isinstance(cookie, dict) and cookie.get("name") == "__Secure-1PSIDTS":
+                expires = cookie.get("expires", -1)
+                if expires > 0:
+                    expires_at = datetime.fromtimestamp(expires).strftime("%-m/%-d/%Y %-I:%M%p (%A)")
+                    break
+        return {
+            "exists": True,
+            "is_active": is_active,
+            "expires_at": expires_at,
+            "needs_refresh": needs_refresh,
+        }
+    except (json.JSONDecodeError, OSError):
+        return {
+            "exists": True,
+            "is_active": False,
+            "expires_at": None,
+            "needs_refresh": True,
+        }
+
+
+def delete_profile(name: str) -> None:
+    profile_dir = get_profile_path(name).parent
+    if profile_dir.exists():
+        import shutil
+        shutil.rmtree(profile_dir)
+    if get_default_profile_name() == name:
+        remaining = list_profiles()
+        if remaining:
+            set_default_profile_name(remaining[0])
+
+
+def rename_profile(old_name: str, new_name: str) -> None:
+    old_dir = get_profile_path(old_name).parent
+    new_dir = get_profile_path(new_name).parent
+    if old_dir.exists():
+        old_dir.rename(new_dir)
+    if get_default_profile_name() == old_name:
+        set_default_profile_name(new_name)
+
+
+def list_profile_statuses() -> list[dict]:
+    default_name = get_default_profile_name()
+    profiles = list_profiles()
+    statuses = []
+    for name in profiles:
+        status = get_profile_status(name)
+        status["name"] = name
+        status["is_default"] = name == default_name
+        statuses.append(status)
+    return statuses
