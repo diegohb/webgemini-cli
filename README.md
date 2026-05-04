@@ -143,9 +143,62 @@ Override with environment variable:
 export GEMITERM_CONFIG_DIR=/custom/path
 ```
 
+### Authentication Profiles
+
+GemiTerm supports multiple Google accounts via profiles. Each profile stores
+its own authentication cookies and settings.
+
+#### First Use
+
+On first use with no profiles, `gemiterm auth` creates a default profile and
+authenticates:
+
+```bash
+gemiterm auth
+```
+
+#### Managing Multiple Profiles
+
+When multiple profiles exist, `gemiterm auth` shows an interactive menu:
+
+- **[A] Add new profile** - authenticate an additional account
+- **[D] Delete profile** - remove an existing profile
+- **[S] Set default** - change which profile is used by default
+- **[R] Rename profile** - rename an existing profile
+- **[E] Exit** - continue with current default profile
+
+You can also manage profiles directly via the `profile` command:
+
+```bash
+gemiterm profile list                    # List all profiles and status
+gemiterm profile add <name>              # Add a new profile (runs auth)
+gemiterm profile delete <name>           # Delete a profile
+gemiterm profile rename <old> <new>      # Rename a profile
+gemiterm profile default <name>          # Set default profile
+```
+
+#### Profile Storage
+
+Profiles are stored in `~/.config/gemiterm/profiles/<profile_name>/storage_state.json`
+
+#### Using All Profiles
+
+For commands that work across conversations, use `--all-profiles` or `-a` to
+operate on all active profiles:
+
+```bash
+gemiterm list -a                    # List chats from all profiles
+gemiterm export-all -a              # Export all conversations from all profiles
+```
+
+The `fetch` and `continue` commands automatically search all profiles since
+conversation IDs are globally unique.
+
 ### Storage File
 
-The storage file (`storage_state.json`) contains your authentication cookies. It is located in the configuration directory.
+The storage file (`storage_state.json`) contains your authentication cookies.
+It is located in the profile directory at
+`~/.config/gemiterm/profiles/<profile_name>/storage_state.json`.
 
 ### Environment Variables
 
