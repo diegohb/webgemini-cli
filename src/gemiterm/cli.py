@@ -6,6 +6,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
@@ -258,7 +259,7 @@ def profile(action: str, profile_name: str | None, new_name: str | None) -> None
 @click.option("-o", "--offset", default=0, help="Offset for pagination")
 @click.option("--all", "fetch_all", is_flag=True, help="Fetch all cached chats")
 @click.option(
-    "-a", "--all-profiles", "all_profiles", is_flag=True, help="Operate across all active profiles"
+    "--all-profiles", "all_profiles", is_flag=True, help="Operate across all active profiles"
 )
 @click.option(
     "--sort",
@@ -296,14 +297,15 @@ def list(
             try:
                 secure_1psid, secure_1psidts = load_cookies(profile_name)
                 client = GeminiClient(secure_1psid, secure_1psidts)
-                chats = client.list_chats()
-                for chat in chats:
+                profile_chats = client.list_chats()
+                for chat in profile_chats:
                     chat["profile"] = profile_name
                     all_chats[chat["id"]] = chat
             except Exception:
                 continue
 
-        chats = list(all_chats.values())
+        chats_combined = [chat for chat in all_chats.values()]
+        chats: list[dict[str, Any]] = chats_combined
     else:
         try:
             secure_1psid, secure_1psidts = load_cookies()
@@ -318,7 +320,7 @@ def list(
 
         try:
             client = GeminiClient(secure_1psid, secure_1psidts)
-            chats = client.list_chats()
+            chats: list[dict[str, Any]] = client.list_chats()
         except CookieExpiredError as e:
             console.print(f"[bold red]Session expired:[/bold red] {e}")
             console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
