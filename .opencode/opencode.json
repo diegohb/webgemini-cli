@@ -8,6 +8,7 @@
   "mcp": {
   },
   "plugin": [
-    "opencode-intellisearch"
+    "opencode-intellisearch",
+    "@plannotator/opencode@latest"
   ]
 }
