@@ -13,7 +13,15 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskPr
 from rich.table import Table
 
 from gemiterm import __version__
-from gemiterm.auth_manager import load_cookies, login
+from gemiterm.auth_manager import (
+    delete_profile,
+    get_default_profile_name,
+    list_profile_statuses,
+    list_profiles,
+    load_cookies,
+    login,
+    rename_profile,
+)
 from gemiterm.exceptions import (
     AuthenticationError,
     CookieExpiredError,
@@ -36,21 +44,162 @@ def cli(verbose: bool) -> None:
 
 @cli.command()
 def auth() -> None:
-    console.print("[bold blue]Starting authentication...[/bold blue]")
-    try:
-        cookies = asyncio.run(login())
+    profiles = list_profiles()
+    if not profiles:
+        console.print("[bold blue]No profiles found. Creating default profile...[/bold blue]")
+        try:
+            asyncio.run(login())
+            console.print(
+                "[bold green]Authentication successful! Created 'default' profile.[/bold green]"
+            )
+        except Exception as e:
+            console.print(f"[bold red]Authentication failed:[/bold red] {e}")
+            sys.exit(1)
+    else:
+        show_auth_menu()
+
+
+def show_auth_menu() -> None:
+    statuses = list_profile_statuses()
+    default_name = get_default_profile_name()
+
+    table = Table(title="Authentication Profiles")
+    table.add_column("Name", style="cyan")
+    table.add_column("Status", style="yellow")
+    table.add_column("Expires", style="blue")
+    table.add_column("Default", style="green")
+
+    for status in statuses:
+        name = status["name"]
+        if status["is_active"]:
+            status_str = "Active"
+        elif status["exists"]:
+            status_str = "Refresh needed"
+        else:
+            status_str = "Expired"
+        expires = status.get("expires_at") or "N/A"
+        default_marker = "*" if name == default_name else ""
+        table.add_row(name, status_str, expires, default_marker)
+
+    console.print(table)
+    console.print()
+    console.print("[bold]Select an action:[/bold]")
+    console.print("  [A] Add new profile")
+    console.print("  [D] Delete profile")
+    console.print("  [S] Set default")
+    console.print("  [R] Rename profile")
+    console.print("  [E] Exit and continue with current default")
+
+    choice = console.input("\nEnter choice (A/D/S/R/E): ").strip().upper()
+
+    if choice == "A":
+        new_name = click.prompt("Enter new profile name")
+        try:
+            asyncio.run(login(new_name))
+            console.print(f"[bold green]Profile '{new_name}' created successfully![/bold green]")
+        except Exception as e:
+            console.print(f"[bold red]Authentication failed:[/bold red] {e}")
+            sys.exit(1)
+    elif choice == "D":
+        name_to_delete = click.prompt("Enter profile name to delete")
+        if name_to_delete == default_name:
+            console.print("[bold yellow]Cannot delete the default profile.[/bold yellow]")
+            return
+        confirm = console.input(f"Delete profile '{name_to_delete}'? (yes/no): ").strip().lower()
+        if confirm == "yes":
+            delete_profile(name_to_delete)
+            console.print(f"[bold green]Profile '{name_to_delete}' deleted.[/bold green]")
+    elif choice == "S":
+        from gemiterm.config import set_default_profile_name
+
+        name_to_set = click.prompt("Enter profile name to set as default")
+        set_default_profile_name(name_to_set)
+        console.print(f"[bold green]Default profile set to '{name_to_set}'.[/bold green]")
+    elif choice == "R":
+        old_name = click.prompt("Enter current profile name")
+        new_name = click.prompt("Enter new profile name")
+        rename_profile(old_name, new_name)
         console.print(
-            f"[bold green]Authentication successful![/bold green] Captured {len(cookies)} cookies."
+            f"[bold green]Profile renamed from '{old_name}' to '{new_name}'.[/bold green]"
         )
-    except Exception as e:
-        console.print(f"[bold red]Authentication failed:[/bold red] {e}")
-        sys.exit(1)
+    elif choice == "E":
+        console.print(f"Continuing with default profile: [cyan]{default_name}[/cyan]")
+    else:
+        console.print("[bold red]Invalid choice.[/bold red]")
+
+
+@cli.command()
+@click.argument("action", type=click.Choice(["add", "delete", "rename", "default", "list"]))
+@click.argument("profile_name", required=False)
+@click.argument("new_name", required=False)
+def profile(action: str, profile_name: str | None, new_name: str | None) -> None:
+    if action == "add":
+        if not profile_name:
+            profile_name = click.prompt("Enter new profile name")
+        try:
+            asyncio.run(login(profile_name))
+            console.print(
+                f"[bold green]Profile '{profile_name}' created successfully![/bold green]"
+            )
+        except Exception as e:
+            console.print(f"[bold red]Authentication failed:[/bold red] {e}")
+            sys.exit(1)
+    elif action == "delete":
+        if not profile_name:
+            profile_name = click.prompt("Enter profile name to delete")
+        default_name = get_default_profile_name()
+        if profile_name == default_name:
+            console.print("[bold yellow]Cannot delete the default profile.[/bold yellow]")
+            return
+        confirm = console.input(f"Delete profile '{profile_name}'? (yes/no): ").strip().lower()
+        if confirm == "yes":
+            delete_profile(profile_name)
+            console.print(f"[bold green]Profile '{profile_name}' deleted.[/bold green]")
+    elif action == "rename":
+        if not profile_name:
+            profile_name = click.prompt("Enter current profile name")
+        if not new_name:
+            new_name = click.prompt("Enter new profile name")
+        rename_profile(profile_name, new_name)
+        console.print(
+            f"[bold green]Profile renamed from '{profile_name}' to '{new_name}'.[/bold green]"
+        )
+    elif action == "default":
+        if not profile_name:
+            profile_name = click.prompt("Enter profile name to set as default")
+        from gemiterm.config import set_default_profile_name
+
+        set_default_profile_name(profile_name)
+        console.print(f"[bold green]Default profile set to '{profile_name}'.[/bold green]")
+    elif action == "list":
+        statuses = list_profile_statuses()
+        default_name = get_default_profile_name()
+        table = Table(title="Profiles")
+        table.add_column("Name", style="cyan")
+        table.add_column("Status", style="yellow")
+        table.add_column("Expires", style="blue")
+        table.add_column("Default", style="green")
+        for status in statuses:
+            name = status["name"]
+            if status["is_active"]:
+                status_str = "Active"
+            elif status["exists"]:
+                status_str = "Refresh needed"
+            else:
+                status_str = "Expired"
+            expires = status.get("expires_at") or "N/A"
+            default_marker = "*" if name == default_name else ""
+            table.add_row(name, status_str, expires, default_marker)
+        console.print(table)
 
 
 @cli.command()
 @click.option("-n", "--limit", default=10, help="Number of chats to display (default: 10)")
 @click.option("-o", "--offset", default=0, help="Offset for pagination")
 @click.option("--all", "fetch_all", is_flag=True, help="Fetch all cached chats")
+@click.option(
+    "-a", "--all-profiles", "all_profiles", is_flag=True, help="Operate across all active profiles"
+)
 @click.option(
     "--sort",
     type=click.Choice(["recent", "oldest", "alpha"]),
@@ -64,6 +213,7 @@ def list(
     limit: int,
     offset: int,
     fetch_all: bool,
+    all_profiles: bool,
     sort: str,
     search: str | None,
     after: str | None,
@@ -72,31 +222,54 @@ def list(
     if limit < 1:
         limit = 1
 
-    try:
-        secure_1psid, secure_1psidts = load_cookies()
-    except CookieExpiredError as e:
-        console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
-        sys.exit(2)
-    except AuthenticationError as e:
-        console.print(f"[bold red]Not authenticated:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
-        sys.exit(2)
+    if all_profiles:
+        statuses = list_profile_statuses()
+        active_profiles = [s for s in statuses if s["is_active"]]
+        if not active_profiles:
+            console.print("[bold red]No active profiles found.[/bold red]")
+            console.print("[yellow]Run 'gemiterm auth' to authenticate.[/yellow]")
+            sys.exit(2)
 
-    try:
-        client = GeminiClient(secure_1psid, secure_1psidts)
-        chats = client.list_chats()
-    except CookieExpiredError as e:
-        console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
-        sys.exit(2)
-    except AuthenticationError as e:
-        console.print(f"[bold red]Authentication error:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
-        sys.exit(2)
-    except GeminiAPIError as e:
-        console.print(f"[bold red]API error:[/bold red] {e}")
-        sys.exit(1)
+        all_chats: dict[str, dict] = {}
+        for profile_status in active_profiles:
+            profile_name = profile_status["name"]
+            try:
+                secure_1psid, secure_1psidts = load_cookies(profile_name)
+                client = GeminiClient(secure_1psid, secure_1psidts)
+                chats = client.list_chats()
+                for chat in chats:
+                    chat["profile"] = profile_name
+                    all_chats[chat["id"]] = chat
+            except Exception:
+                continue
+
+        chats = list(all_chats.values())
+    else:
+        try:
+            secure_1psid, secure_1psidts = load_cookies()
+        except CookieExpiredError as e:
+            console.print(f"[bold red]Session expired:[/bold red] {e}")
+            console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
+            sys.exit(2)
+        except AuthenticationError as e:
+            console.print(f"[bold red]Not authenticated:[/bold red] {e}")
+            console.print("[bold yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
+            sys.exit(2)
+
+        try:
+            client = GeminiClient(secure_1psid, secure_1psidts)
+            chats = client.list_chats()
+        except CookieExpiredError as e:
+            console.print(f"[bold red]Session expired:[/bold red] {e}")
+            console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
+            sys.exit(2)
+        except AuthenticationError as e:
+            console.print(f"[bold red]Authentication error:[/bold red] {e}")
+            console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
+            sys.exit(2)
+        except GeminiAPIError as e:
+            console.print(f"[bold red]API error:[/bold red] {e}")
+            sys.exit(1)
 
     if not chats:
         console.print("[yellow]No chats found.[/yellow]")
@@ -152,12 +325,18 @@ def list(
     table.add_column("Title", style="green")
     table.add_column("Pinned", style="yellow")
     table.add_column("Last Updated", style="blue")
+    if all_profiles:
+        table.add_column("Profile", style="magenta")
 
     for chat in paginated_chats:
         pin_marker = "*" if chat.get("is_pinned") else ""
         ts = chat.get("timestamp")
         date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M") if ts else "N/A"
-        table.add_row(chat["id"], chat["title"], pin_marker, date_str)
+        if all_profiles:
+            profile_name = chat.get("profile", "unknown")
+            table.add_row(chat["id"], chat["title"], pin_marker, date_str, profile_name)
+        else:
+            table.add_row(chat["id"], chat["title"], pin_marker, date_str)
 
     console.print(table)
 
@@ -180,36 +359,39 @@ def fetch(conversation_id: str, output_format: str, output_path: Path | None) ->
         console.print("[bold red]Error:[/bold red] conversation_id cannot be empty.")
         sys.exit(1)
 
-    try:
-        secure_1psid, secure_1psidts = load_cookies()
-    except CookieExpiredError as e:
-        console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
-        sys.exit(2)
-    except AuthenticationError as e:
-        console.print(f"[bold red]Not authenticated:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
+    statuses = list_profile_statuses()
+    active_profiles = [s["name"] for s in statuses if s["is_active"]]
+    if not active_profiles:
+        console.print("[bold red]No active profiles found.[/bold red]")
+        console.print("[yellow]Run 'gemiterm auth' to authenticate.[/yellow]")
         sys.exit(2)
 
-    try:
-        client = GeminiClient(secure_1psid, secure_1psidts)
-        messages = client.fetch_chat(conversation_id)
-    except ConversationNotFoundError as e:
-        console.print(f"[bold red]Conversation not found:[/bold red] {e}")
+    messages = None
+    last_error = None
+    for profile_name in active_profiles:
+        try:
+            secure_1psid, secure_1psidts = load_cookies(profile_name)
+            client = GeminiClient(secure_1psid, secure_1psidts)
+            messages = client.fetch_chat(conversation_id)
+            break
+        except ConversationNotFoundError:
+            continue
+        except CookieExpiredError as e:
+            last_error = e
+            continue
+        except AuthenticationError as e:
+            last_error = e
+            continue
+        except GeminiAPIError as e:
+            last_error = e
+            continue
+
+    if messages is None:
+        if last_error:
+            console.print(f"[bold red]Failed to fetch conversation:[/bold red] {last_error}")
         console.print(
             "[bold yellow]Run 'gemiterm list' to see available conversations.[/bold yellow]"
         )
-        sys.exit(1)
-    except CookieExpiredError as e:
-        console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
-        sys.exit(2)
-    except AuthenticationError as e:
-        console.print(f"[bold red]Authentication error:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
-        sys.exit(2)
-    except GeminiAPIError as e:
-        console.print(f"[bold red]API error:[/bold red] {e}")
         sys.exit(1)
 
     if not messages:
@@ -255,16 +437,32 @@ def continue_chat(conversation_id: str, message: str | None) -> None:
         console.print("[bold red]Error:[/bold red] conversation_id cannot be empty.")
         sys.exit(1)
 
-    try:
-        secure_1psid, secure_1psidts = load_cookies()
-    except CookieExpiredError as e:
-        console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
+    statuses = list_profile_statuses()
+    active_profiles = [s["name"] for s in statuses if s["is_active"]]
+    if not active_profiles:
+        console.print("[bold red]No active profiles found.[/bold red]")
+        console.print("[yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
         sys.exit(2)
-    except AuthenticationError as e:
-        console.print(f"[bold red]Not authenticated:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
-        sys.exit(2)
+
+    secure_1psid = None
+    secure_1psidts = None
+    for profile_name in active_profiles:
+        try:
+            secure_1psid, secure_1psidts = load_cookies(profile_name)
+            client = GeminiClient(secure_1psid, secure_1psidts)
+            client.continue_chat(conversation_id, "ping")
+            break
+        except (ConversationNotFoundError, CookieExpiredError, AuthenticationError):
+            continue
+        except GeminiAPIError:
+            break
+
+    if secure_1psid is None:
+        console.print("[bold red]Conversation not found in any active profile.[/bold red]")
+        console.print(
+            "[bold yellow]Run 'gemiterm list' to see available conversations.[/bold yellow]"
+        )
+        sys.exit(1)
 
     if message and message.strip():
         continue_chat_single(conversation_id, message, secure_1psid, secure_1psidts)
@@ -307,7 +505,7 @@ def continue_chat_interactive(
         console.print(f"[bold red]Failed to initialize client:[/bold red] {e}")
         sys.exit(1)
 
-    console.print(f"[bold cyan]Interactive chat session started.[/bold cyan]")
+    console.print("[bold cyan]Interactive chat session started.[/bold cyan]")
     console.print("[dim]Type your message and press Enter to send.[/dim]")
     console.print("[dim]Type /exit or press Ctrl+C to end the session.[/dim]")
     console.print()
@@ -468,38 +666,74 @@ def export(
     default=False,
     help="Include full metadata in each export",
 )
-def export_all(output_dir: Path | None, since: str | None, include_metadata: bool) -> None:
+@click.option(
+    "-a",
+    "--all-profiles",
+    "all_profiles",
+    is_flag=True,
+    help="Export from all active profiles",
+)
+def export_all(
+    output_dir: Path | None, since: str | None, include_metadata: bool, all_profiles: bool
+) -> None:
     if output_dir is None:
         output_dir = Path.cwd() / "exports"
 
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    try:
-        secure_1psid, secure_1psidts = load_cookies()
-    except CookieExpiredError as e:
-        console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
-        sys.exit(2)
-    except AuthenticationError as e:
-        console.print(f"[bold red]Not authenticated:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
-        sys.exit(2)
+    from gemiterm.exporter import format_chat_as_markdown
 
-    try:
-        client = GeminiClient(secure_1psid, secure_1psidts)
-        all_chats = client.list_chats()
-    except CookieExpiredError as e:
-        console.print(f"[bold red]Session expired:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
-        sys.exit(2)
-    except AuthenticationError as e:
-        console.print(f"[bold red]Authentication error:[/bold red] {e}")
-        console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
-        sys.exit(2)
-    except GeminiAPIError as e:
-        console.print(f"[bold red]API error:[/bold red] {e}")
-        sys.exit(1)
+    exported_chats: list[dict[str, str]] = []
+    failed_chats: list[tuple[str, str]] = []
+
+    if all_profiles:
+        statuses = list_profile_statuses()
+        active_profiles = [s for s in statuses if s["is_active"]]
+        if not active_profiles:
+            console.print("[bold red]No active profiles found.[/bold red]")
+            console.print("[yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
+            sys.exit(2)
+
+        all_chats_dict: dict[str, dict] = {}
+        for profile_status in active_profiles:
+            profile_name = profile_status["name"]
+            try:
+                secure_1psid, secure_1psidts = load_cookies(profile_name)
+                client = GeminiClient(secure_1psid, secure_1psidts)
+                chats = client.list_chats()
+                for chat in chats:
+                    chat["profile"] = profile_name
+                    all_chats_dict[chat["id"]] = chat
+            except Exception:
+                continue
+        all_chats = list(all_chats_dict.values())
+    else:
+        try:
+            secure_1psid, secure_1psidts = load_cookies()
+        except CookieExpiredError as e:
+            console.print(f"[bold red]Session expired:[/bold red] {e}")
+            console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
+            sys.exit(2)
+        except AuthenticationError as e:
+            console.print(f"[bold red]Not authenticated:[/bold red] {e}")
+            console.print("[bold yellow]Run 'gemiterm auth' to authenticate.[/bold yellow]")
+            sys.exit(2)
+
+        try:
+            client = GeminiClient(secure_1psid, secure_1psidts)
+            all_chats = client.list_chats()
+        except CookieExpiredError as e:
+            console.print(f"[bold red]Session expired:[/bold red] {e}")
+            console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
+            sys.exit(2)
+        except AuthenticationError as e:
+            console.print(f"[bold red]Authentication error:[/bold red] {e}")
+            console.print("[bold yellow]Run 'gemiterm auth' to re-authenticate.[/bold yellow]")
+            sys.exit(2)
+        except GeminiAPIError as e:
+            console.print(f"[bold red]API error:[/bold red] {e}")
+            sys.exit(1)
 
     if not all_chats:
         console.print("[yellow]No chats found.[/yellow]")
@@ -514,11 +748,6 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
             )
             sys.exit(1)
 
-    from gemiterm.exporter import format_chat_as_markdown
-
-    exported_chats: list[dict[str, str]] = []
-    failed_chats: list[tuple[str, str]] = []
-
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -531,10 +760,14 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
         for chat in all_chats:
             conversation_id = chat["id"]
             title = chat["title"]
+            profile_name = chat.get("profile")
 
             progress.update(export_task, description=f"[cyan]Exporting: {title[:30]}...")
 
             try:
+                if all_profiles and profile_name:
+                    secure_1psid, secure_1psidts = load_cookies(profile_name)
+                    client = GeminiClient(secure_1psid, secure_1psidts)
                 messages = client.fetch_chat(conversation_id)
                 if not messages:
                     progress.advance(export_task)
@@ -542,7 +775,10 @@ def export_all(output_dir: Path | None, since: str | None, include_metadata: boo
 
                 safe_title = "".join(c if c.isalnum() or c in " -_" else "_" for c in title)[:50]
                 date_str = datetime.now().strftime("%Y%m%d")
-                filename = f"gemini-chat-{conversation_id}-{safe_title[:20]}-{date_str}.md"
+                profile_suffix = f"-{profile_name}" if profile_name else ""
+                filename = (
+                    f"gemini-chat-{conversation_id}{profile_suffix}-{safe_title[:20]}-{date_str}.md"
+                )
                 filepath = output_path / filename
 
                 content = format_chat_as_markdown(
@@ -633,7 +869,7 @@ def install_browser() -> None:
         cmd = [sys.executable, "-m", "playwright", "install", "chromium"]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            console.print(f"[bold red]Failed to install Chromium:[/bold red]")
+            console.print("[bold red]Failed to install Chromium:[/bold red]")
             console.print(result.stderr)
             raise click.ClickException("Chromium installation failed")
         console.print("[bold green]Chromium installed successfully.[/bold green]")
@@ -723,44 +959,38 @@ def _download_chromium_fallback() -> None:
 
 @cli.command()
 def status() -> None:
-    from gemiterm.config import _get_config_dir, get_storage_state_path
+    from gemiterm.config import _get_config_dir
 
-    storage_path = get_storage_state_path()
     config_dir = _get_config_dir()
 
     console.print("[bold]gemiterm Status[/bold]")
     console.print()
     console.print(f"Config directory: [cyan]{config_dir}[/cyan]")
-    console.print(f"Storage file: [cyan]{storage_path}[/cyan]")
     console.print()
 
-    if not storage_path.exists():
-        console.print("[bold red]Status: Not authenticated[/bold red]")
-        console.print("[yellow]Run 'gemiterm auth' to authenticate.[/yellow]")
+    statuses = list_profile_statuses()
+    if not statuses:
+        console.print("[bold red]Status: No profiles found[/bold red]")
+        console.print("[yellow]Run 'gemiterm auth' to create your first profile.[/yellow]")
         sys.exit(2)
 
-    try:
-        secure_1psid, secure_1psidts = load_cookies()
-        client = GeminiClient(secure_1psid, secure_1psidts)
-        client.list_chats()
-        console.print("[bold green]Status: Authenticated and connected[/bold green]")
-        console.print("[green]Cookies are valid and API connection is working.[/green]")
-    except CookieExpiredError:
-        console.print("[bold yellow]Status: Session expired[/bold yellow]")
-        console.print("[yellow]Run 'gemiterm auth' to re-authenticate.[/yellow]")
-        sys.exit(2)
-    except AuthenticationError:
-        console.print("[bold red]Status: Authentication invalid[/bold red]")
-        console.print("[yellow]Run 'gemiterm auth' to re-authenticate.[/yellow]")
-        sys.exit(2)
-    except GeminiAPIError as e:
-        console.print("[bold yellow]Status: API connection issue[/bold yellow]")
-        console.print(f"[yellow]Error: {e}[/yellow]")
-        console.print(
-            "[yellow]The cookies may be valid but the API is not responding properly.[/yellow]"
-        )
-        sys.exit(1)
-    except Exception as e:
-        console.print("[bold red]Status: Unknown error[/bold red]")
-        console.print(f"[red]{e}[/red]")
-        sys.exit(1)
+    table = Table(title="Profiles")
+    table.add_column("Name", style="cyan")
+    table.add_column("Status", style="yellow")
+    table.add_column("Expires", style="blue")
+    table.add_column("Default", style="green")
+
+    default_name = get_default_profile_name()
+    for status in statuses:
+        name = status["name"]
+        if status["is_active"]:
+            status_str = "Active"
+        elif status["exists"]:
+            status_str = "Refresh needed"
+        else:
+            status_str = "Expired"
+        expires = status.get("expires_at") or "N/A"
+        default_marker = "*" if name == default_name else ""
+        table.add_row(name, status_str, expires, default_marker)
+
+    console.print(table)
