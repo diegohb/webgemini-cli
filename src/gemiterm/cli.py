@@ -88,44 +88,47 @@ def show_auth_menu() -> None:
     console.print("  [D] Delete profile")
     console.print("  [S] Set default")
     console.print("  [R] Rename profile")
-    console.print("  [E] Exit and continue with current default")
+    console.print("  [X] Exit and continue with current default")
 
-    choice = console.input("\nEnter choice (A/D/S/R/E): ").strip().upper()
+    try:
+        choice = console.input("\nEnter choice (A/D/S/R/X): ").strip().upper()
 
-    if choice == "A":
-        new_name = click.prompt("Enter new profile name")
-        try:
-            asyncio.run(login(new_name))
-            console.print(f"[bold green]Profile '{new_name}' created successfully![/bold green]")
-        except Exception as e:
-            console.print(f"[bold red]Authentication failed:[/bold red] {e}")
-            sys.exit(1)
-    elif choice == "D":
-        name_to_delete = click.prompt("Enter profile name to delete")
-        if name_to_delete == default_name:
-            console.print("[bold yellow]Cannot delete the default profile.[/bold yellow]")
-            return
-        confirm = console.input(f"Delete profile '{name_to_delete}'? (yes/no): ").strip().lower()
-        if confirm == "yes":
-            delete_profile(name_to_delete)
-            console.print(f"[bold green]Profile '{name_to_delete}' deleted.[/bold green]")
-    elif choice == "S":
-        from gemiterm.config import set_default_profile_name
+        if choice == "A":
+            new_name = click.prompt("Enter new profile name")
+            try:
+                asyncio.run(login(new_name))
+                console.print(f"[bold green]Profile '{new_name}' created successfully![/bold green]")
+            except Exception as e:
+                console.print(f"[bold red]Authentication failed:[/bold red] {e}")
+                sys.exit(1)
+        elif choice == "D":
+            name_to_delete = click.prompt("Enter profile name to delete")
+            if name_to_delete == default_name:
+                console.print("[bold yellow]Cannot delete the default profile.[/bold yellow]")
+                return
+            confirm = console.input(f"Delete profile '{name_to_delete}'? (yes/no): ").strip().lower()
+            if confirm == "yes":
+                delete_profile(name_to_delete)
+                console.print(f"[bold green]Profile '{name_to_delete}' deleted.[/bold green]")
+        elif choice == "S":
+            from gemiterm.config import set_default_profile_name
 
-        name_to_set = click.prompt("Enter profile name to set as default")
-        set_default_profile_name(name_to_set)
-        console.print(f"[bold green]Default profile set to '{name_to_set}'.[/bold green]")
-    elif choice == "R":
-        old_name = click.prompt("Enter current profile name")
-        new_name = click.prompt("Enter new profile name")
-        rename_profile(old_name, new_name)
-        console.print(
-            f"[bold green]Profile renamed from '{old_name}' to '{new_name}'.[/bold green]"
-        )
-    elif choice == "E":
-        console.print(f"Continuing with default profile: [cyan]{default_name}[/cyan]")
-    else:
-        console.print("[bold red]Invalid choice.[/bold red]")
+            name_to_set = click.prompt("Enter profile name to set as default")
+            set_default_profile_name(name_to_set)
+            console.print(f"[bold green]Default profile set to '{name_to_set}'.[/bold green]")
+        elif choice == "R":
+            old_name = click.prompt("Enter current profile name")
+            new_name = click.prompt("Enter new profile name")
+            rename_profile(old_name, new_name)
+            console.print(
+                f"[bold green]Profile renamed from '{old_name}' to '{new_name}'.[/bold green]"
+            )
+        elif choice == "X":
+            console.print(f"Continuing with default profile: [cyan]{default_name}[/cyan]")
+        else:
+            console.print("[bold red]Invalid choice.[/bold red]")
+    except KeyboardInterrupt:
+        console.print("\n[bold yellow]Exiting auth menu...[/bold yellow]")
 
 
 @cli.command()
@@ -156,13 +159,37 @@ def profile(action: str, profile_name: str | None, new_name: str | None) -> None
             delete_profile(profile_name)
             console.print(f"[bold green]Profile '{profile_name}' deleted.[/bold green]")
     elif action == "rename":
+        statuses = list_profile_statuses()
+        default_name = get_default_profile_name()
+        table = Table(title="Profiles")
+        table.add_column("ID", style="cyan")
+        table.add_column("Name", style="cyan")
+        table.add_column("Status", style="yellow")
+        table.add_column("Expires", style="blue")
+        table.add_column("Default", style="green")
+        for idx, status in enumerate(statuses, start=1):
+            name = status["name"]
+            if status["is_active"]:
+                status_str = "Active"
+            elif status["exists"]:
+                status_str = "Refresh needed"
+            else:
+                status_str = "Expired"
+            expires = status.get("expires_at") or "N/A"
+            default_marker = "*" if name == default_name else ""
+            table.add_row(str(idx), name, status_str, expires, default_marker)
+        console.print(table)
         if not profile_name:
-            profile_name = click.prompt("Enter current profile name")
+            profile_name = click.prompt("Enter profile ID to rename", type=int)
+        if profile_name < 1 or profile_name > len(statuses):
+            console.print("[bold red]Invalid profile ID.[/bold red]")
+            return
+        old_name = statuses[profile_name - 1]["name"]
         if not new_name:
             new_name = click.prompt("Enter new profile name")
-        rename_profile(profile_name, new_name)
+        rename_profile(old_name, new_name)
         console.print(
-            f"[bold green]Profile renamed from '{profile_name}' to '{new_name}'.[/bold green]"
+            f"[bold green]Profile renamed from '{old_name}' to '{new_name}'.[/bold green]"
         )
     elif action == "default":
         if not profile_name:
