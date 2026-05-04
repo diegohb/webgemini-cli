@@ -152,7 +152,12 @@ def get_profile_status(profile_name: str) -> dict:
             if isinstance(cookie, dict) and cookie.get("name") == "__Secure-1PSIDTS":
                 expires = cookie.get("expires", -1)
                 if expires > 0:
-                    expires_at = datetime.fromtimestamp(expires).strftime("%-m/%-d/%Y %-I:%M%p (%A)")
+                    dt = datetime.fromtimestamp(expires)
+                    month = str(dt.month)
+                    day = str(dt.day)
+                    hour_12 = dt.strftime("%I")
+                    hour = hour_12.lstrip("0")
+                    expires_at = f"{month}/{day}/{dt.year} {hour}:{dt.strftime('%M%p')} ({dt.strftime('%A')})"
                     break
         return {
             "exists": True,
