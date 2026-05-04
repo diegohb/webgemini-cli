@@ -117,7 +117,29 @@ def show_auth_menu() -> None:
             set_default_profile_name(name_to_set)
             console.print(f"[bold green]Default profile set to '{name_to_set}'.[/bold green]")
         elif choice == "R":
-            old_name = click.prompt("Enter current profile name")
+            table = Table(title="Profiles")
+            table.add_column("ID", style="cyan")
+            table.add_column("Name", style="cyan")
+            table.add_column("Status", style="yellow")
+            table.add_column("Expires", style="blue")
+            table.add_column("Default", style="green")
+            for idx, status in enumerate(statuses, start=1):
+                name = status["name"]
+                if status["is_active"]:
+                    status_str = "Active"
+                elif status["exists"]:
+                    status_str = "Refresh needed"
+                else:
+                    status_str = "Expired"
+                expires = status.get("expires_at") or "N/A"
+                default_marker = "*" if name == default_name else ""
+                table.add_row(str(idx), name, status_str, expires, default_marker)
+            console.print(table)
+            profile_id = click.prompt("Enter profile ID to rename", type=int)
+            if profile_id < 1 or profile_id > len(statuses):
+                console.print("[bold red]Invalid profile ID.[/bold red]")
+                return
+            old_name = statuses[profile_id - 1]["name"]
             new_name = click.prompt("Enter new profile name")
             rename_profile(old_name, new_name)
             console.print(
@@ -180,11 +202,22 @@ def profile(action: str, profile_name: str | None, new_name: str | None) -> None
             table.add_row(str(idx), name, status_str, expires, default_marker)
         console.print(table)
         if not profile_name:
-            profile_name = click.prompt("Enter profile ID to rename", type=int)
-        if profile_name < 1 or profile_name > len(statuses):
+            profile_id_str = click.prompt("Enter profile ID to rename")
+            try:
+                profile_id_input = int(profile_id_str)
+            except ValueError:
+                console.print("[bold red]Invalid profile ID.[/bold red]")
+                return
+        else:
+            try:
+                profile_id_input = int(profile_name)
+            except ValueError:
+                console.print("[bold red]Invalid profile ID.[/bold red]")
+                return
+        if profile_id_input < 1 or profile_id_input > len(statuses):
             console.print("[bold red]Invalid profile ID.[/bold red]")
             return
-        old_name = statuses[profile_name - 1]["name"]
+        old_name = statuses[profile_id_input - 1]["name"]
         if not new_name:
             new_name = click.prompt("Enter new profile name")
         rename_profile(old_name, new_name)
