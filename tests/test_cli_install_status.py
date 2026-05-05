@@ -1,8 +1,6 @@
 """Tests for install-browser, status commands and root cli group."""
 from unittest.mock import MagicMock, patch
-from pathlib import Path
 
-import pytest
 from click.testing import CliRunner
 
 from gemiterm.cli import cli
@@ -119,92 +117,46 @@ class TestInstallBrowser:
 class TestStatus:
     """Tests for the status command."""
 
-    @pytest.fixture
-    def mock_paths(self, tmp_path):
-        """Mock config paths to use temp directory."""
-        storage_path = tmp_path / "storage_state.json"
-        config_dir = tmp_path / ".config" / "gemiterm"
-        config_dir.mkdir(parents=True, exist_ok=True)
-        with patch("gemiterm.config.get_storage_state_path", return_value=storage_path):
-            with patch("gemiterm.config._get_config_dir", return_value=config_dir):
-                yield storage_path
-
-    def test_status_not_authenticated(self, mock_paths):
-        """Test status when storage file does not exist shows not authenticated."""
-        runner = CliRunner()
-        result = runner.invoke(cli, ["status"])
-        assert result.exit_code == 2
-        assert "Not authenticated" in result.output
-
-    def test_status_cookie_expired(self, mock_paths):
-        """Test status when cookies are expired shows expired message."""
-        from gemiterm.exceptions import CookieExpiredError
-
-        storage_path = mock_paths
-        storage_path.touch()
-
-        runner = CliRunner()
-        with patch("gemiterm.cli.load_cookies", side_effect=CookieExpiredError("Session expired")):
+    def test_status_no_profiles(self):
+        """Test status when no profiles exist."""
+        with patch("gemiterm.cli.list_profile_statuses", return_value=[]):
+            runner = CliRunner()
             result = runner.invoke(cli, ["status"])
             assert result.exit_code == 2
-            assert "expired" in result.output.lower()
+            assert "No profiles found" in result.output
 
-    def test_status_authentication_error(self, mock_paths):
-        """Test status when authentication is invalid shows authentication invalid."""
-        from gemiterm.exceptions import AuthenticationError
-
-        storage_path = mock_paths
-        storage_path.touch()
-
-        runner = CliRunner()
-        with patch("gemiterm.cli.load_cookies", side_effect=AuthenticationError("Invalid")):
+    def test_status_with_active_profile(self):
+        """Test status shows profile table when profiles exist."""
+        statuses = [
+            {
+                "name": "work",
+                "is_active": True,
+                "exists": True,
+                "expires_at": "1/15/2026 3:00PM (Wednesday)",
+                "is_default": True,
+            },
+        ]
+        with patch("gemiterm.cli.list_profile_statuses", return_value=statuses):
+            runner = CliRunner()
             result = runner.invoke(cli, ["status"])
-            assert result.exit_code == 2
-            assert "invalid" in result.output.lower()
+            assert result.exit_code == 0
+            assert "work" in result.output
+            assert "Active" in result.output
 
-    def test_status_api_error(self, mock_paths):
-        """Test status when API error occurs shows API connection issue."""
-        from gemiterm.exceptions import GeminiAPIError
-
-        storage_path = mock_paths
-        storage_path.touch()
-
-        runner = CliRunner()
-        with patch("gemiterm.cli.load_cookies", return_value=("abc", "xyz")):
-            with patch("gemiterm.cli.GeminiClient") as mock_client_class:
-                mock_client = MagicMock()
-                mock_client.list_chats.side_effect = GeminiAPIError("Connection failed")
-                mock_client_class.return_value = mock_client
-                result = runner.invoke(cli, ["status"])
-                assert result.exit_code == 1
-                assert "API" in result.output or "connection" in result.output.lower()
-
-    def test_status_connected(self, mock_paths):
-        """Test status when connected shows authenticated and connected."""
-        storage_path = mock_paths
-        storage_path.touch()
-
-        runner = CliRunner()
-        with patch("gemiterm.cli.load_cookies", return_value=("abc", "xyz")):
-            with patch("gemiterm.cli.GeminiClient") as mock_client_class:
-                mock_client = MagicMock()
-                mock_client.list_chats.return_value = []
-                mock_client_class.return_value = mock_client
-                result = runner.invoke(cli, ["status"])
-                assert result.exit_code == 0
-                assert "connected" in result.output.lower()
-
-    def test_status_unknown_error(self, mock_paths):
-        """Test status when unknown error occurs shows generic error."""
-        storage_path = mock_paths
-        storage_path.touch()
-
-        runner = CliRunner()
-        with patch("gemiterm.cli.load_cookies", return_value=("abc", "xyz")):
-            with patch("gemiterm.cli.GeminiClient") as mock_client_class:
-                mock_client = MagicMock()
-                mock_client.list_chats.side_effect = ValueError("Unexpected error")
-                mock_client_class.return_value = mock_client
-                result = runner.invoke(cli, ["status"])
-                assert result.exit_code == 1
-                assert "Unknown error" in result.output
+    def test_status_with_expired_profile(self):
+        """Test status shows expired profile."""
+        statuses = [
+            {
+                "name": "old",
+                "is_active": False,
+                "exists": True,
+                "expires_at": None,
+                "is_default": True,
+            },
+        ]
+        with patch("gemiterm.cli.list_profile_statuses", return_value=statuses):
+            runner = CliRunner()
+            result = runner.invoke(cli, ["status"])
+            assert result.exit_code == 0
+            assert "old" in result.output
+            assert "Refresh needed" in result.output
