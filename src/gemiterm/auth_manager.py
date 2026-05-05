@@ -93,17 +93,6 @@ def load_cookies(profile_name: str | None = None) -> tuple[str, str | None]:
         raise AuthenticationError("Missing required cookie __Secure-1PSID")
     return (secure_1psid, secure_1psidts)
 
-
-async def refresh_cookies(profile_name: str | None = None) -> tuple[str, str | None]:
-    cookies = await login(profile_name)
-    cookie_dict = {c["name"]: c["value"] for c in cookies}
-    secure_1psid = cookie_dict.get("__Secure-1PSID")
-    secure_1psidts = cookie_dict.get("__Secure-1PSIDTS")
-    if not secure_1psid:
-        raise AuthenticationError("Missing required cookie __Secure-1PSID")
-    return (secure_1psid, secure_1psidts)
-
-
 def get_profile_status(profile_name: str) -> dict:
     profile_path = get_profile_path(profile_name)
     if not profile_path.exists():

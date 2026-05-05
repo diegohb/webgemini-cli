@@ -44,10 +44,6 @@ def list_profiles() -> list[str]:
     )
 
 
-def get_storage_state_path() -> Path:
-    return get_profile_path(get_default_profile_name())
-
-
 def ensure_config_dir() -> Path:
     config_dir = _get_config_dir()
     config_dir.mkdir(parents=True, exist_ok=True)
