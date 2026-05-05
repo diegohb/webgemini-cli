@@ -36,8 +36,7 @@ def check_cookie_freshness(cookies: dict) -> bool:
 async def login() -> list[dict]:
     ensure_config_dir()
     async with async_playwright() as p:
-        executable = _get_browser_executable()
-        browser = await p.chromium.launch(headless=False, executable_path=executable)
+        browser = await p.chromium.launch(headless=False)
         context = await browser.new_context()
         page = await context.new_page()
 
