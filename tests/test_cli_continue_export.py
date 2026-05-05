@@ -14,6 +14,9 @@ class TestContinue:
         ):
             mock_cookies.return_value = ("sid123", "ts123")
             mock_client = MagicMock()
+            mock_client.fetch_chat.return_value = [
+                {"role": "user", "content": "test"},
+            ]
             mock_client.continue_chat.return_value = "AI response here"
             mock_client_class.return_value = mock_client
             runner = CliRunner()
@@ -30,6 +33,9 @@ class TestContinue:
         ):
             mock_cookies.return_value = ("sid123", "ts123")
             mock_client = MagicMock()
+            mock_client.fetch_chat.return_value = [
+                {"role": "user", "content": "test"},
+            ]
             mock_client_class.return_value = mock_client
             runner = CliRunner()
             result = runner.invoke(cli, ["continue", "cid123"])
@@ -45,9 +51,9 @@ class TestContinue:
         ):
             mock_cookies.return_value = ("sid123", "ts123")
             mock_client = MagicMock()
-            from gemiterm.exceptions import ConversationNotFoundError
+            from gemiterm.exceptions import GeminiAPIError
 
-            mock_client.continue_chat.side_effect = ConversationNotFoundError("Not found")
+            mock_client.fetch_chat.side_effect = GeminiAPIError("Not found")
             mock_client_class.return_value = mock_client
             runner = CliRunner()
             result = runner.invoke(cli, ["continue", "nonexistent", "Hello"])
@@ -71,6 +77,9 @@ class TestContinue:
             mock_client = MagicMock()
             from gemiterm.exceptions import GeminiAPIError
 
+            mock_client.fetch_chat.return_value = [
+                {"role": "user", "content": "test"},
+            ]
             mock_client.continue_chat.side_effect = GeminiAPIError("API error")
             mock_client_class.return_value = mock_client
             runner = CliRunner()

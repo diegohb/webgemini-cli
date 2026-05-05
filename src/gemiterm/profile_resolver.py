@@ -61,14 +61,13 @@ def find_client_for_conversation(
 
     for pname in active_names:
         try:
-            secure_1psid, secure_1psidts = load_cookies(pname)
-            client = GeminiClient(secure_1psid, secure_1psidts)
-            client.continue_chat(conversation_id, "ping")
+            pname_1psid, pname_1psidts = load_cookies(pname)
+            client = GeminiClient(pname_1psid, pname_1psidts)
+            client.fetch_chat(conversation_id)
+            secure_1psid, secure_1psidts = pname_1psid, pname_1psidts
             break
-        except (ConversationNotFoundError, CookieExpiredError, AuthenticationError):
+        except (ConversationNotFoundError, CookieExpiredError, AuthenticationError, GeminiAPIError):
             continue
-        except GeminiAPIError:
-            break
     else:
         return None, None
 

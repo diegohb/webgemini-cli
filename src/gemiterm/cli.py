@@ -120,14 +120,18 @@ def _find_client_for_conversation(
     secure_1psidts = None
     for pname in active_profiles:
         try:
-            secure_1psid, secure_1psidts = load_cookies(pname)
-            client = GeminiClient(secure_1psid, secure_1psidts)
-            client.continue_chat(conversation_id, "ping")
+            pname_1psid, pname_1psidts = load_cookies(pname)
+            client = GeminiClient(pname_1psid, pname_1psidts)
+            client.fetch_chat(conversation_id)
+            secure_1psid, secure_1psidts = pname_1psid, pname_1psidts
             break
-        except (ConversationNotFoundError, CookieExpiredError, AuthenticationError):
+        except (
+            ConversationNotFoundError,
+            CookieExpiredError,
+            AuthenticationError,
+            GeminiAPIError,
+        ):
             continue
-        except GeminiAPIError:
-            break
     return secure_1psid, secure_1psidts
 
 
@@ -180,8 +184,7 @@ def _set_default(profile_name: str) -> None:
 @click.option("-v", "--verbose", is_flag=True, help="Enable verbose logging")
 @click.version_option(version=__version__, prog_name="gemiterm")
 def cli(verbose: bool) -> None:
-    if verbose:
-        setup_logging(verbose=True)
+    setup_logging(verbose=verbose)
 
 
 @cli.command()
