@@ -184,8 +184,7 @@ def _set_default(profile_name: str) -> None:
 @click.option("-v", "--verbose", is_flag=True, help="Enable verbose logging")
 @click.version_option(version=__version__, prog_name="gemiterm")
 def cli(verbose: bool) -> None:
-    if verbose:
-        setup_logging(verbose=True)
+    setup_logging(verbose=verbose)
 
 
 @cli.command()
