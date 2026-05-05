@@ -689,7 +689,11 @@ def export(
             }
         content = json.dumps(export_data, indent=2)
 
-    output_path.write_text(content)
+    try:
+        output_path.write_text(content)
+    except OSError as e:
+        console.print(f"[bold red]Failed to write file:[/bold red] {e}")
+        sys.exit(1)
     console.print(f"[bold green]Exported to {output_path}[/bold green]")
 
 
