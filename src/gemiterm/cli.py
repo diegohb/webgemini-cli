@@ -416,7 +416,7 @@ def list(
 
 
 @cli.command()
-@click.argument("conversation_id")
+@click.argument("conversation_id", required=False)
 @click.option(
     "--format", "-f", "output_format", default="text", type=click.Choice(["text", "json"])
 )
@@ -428,7 +428,21 @@ def list(
     default=None,
     help="File path to save fetched content (default: print to console)",
 )
-def fetch(conversation_id: str, output_format: str, output_path: Path | None) -> None:
+@click.pass_context
+def fetch(
+    ctx: click.Context,
+    conversation_id: str | None,
+    output_format: str,
+    output_path: Path | None,
+) -> None:
+    if conversation_id is None:
+        ctx.invoke(
+            cli.commands["list"],
+            output_format=output_format,
+            output_path=output_path,
+        )
+        return
+
     validate_conversation_id(conversation_id)
 
     active_profiles = require_active_profiles(list_profile_statuses())

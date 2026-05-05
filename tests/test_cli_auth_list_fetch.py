@@ -221,6 +221,22 @@ class TestFetch:
             assert "USER" in content
             assert "Hello" in content
 
+    def test_fetch_no_args_redirects_to_list(self):
+        with (
+            patch("gemiterm.cli.load_cookies") as mock_cookies,
+            patch("gemiterm.cli.GeminiClient") as mock_client_class,
+        ):
+            mock_cookies.return_value = ("sid123", "ts123")
+            mock_client = MagicMock()
+            mock_client.list_chats.return_value = [
+                {"id": "c1", "title": "Chat 1", "is_pinned": False, "timestamp": 1700000000},
+            ]
+            mock_client_class.return_value = mock_client
+            runner = CliRunner()
+            result = runner.invoke(cli, ["fetch"])
+            assert result.exit_code == 0
+            assert "Chat 1" in result.output
+
     def test_fetch_empty_conversation_id(self):
         runner = CliRunner()
         result = runner.invoke(cli, ["fetch", ""])
