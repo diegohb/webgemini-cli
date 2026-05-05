@@ -24,7 +24,12 @@ from gemiterm.auth_manager import (
     rename_profile,
 )
 from gemiterm.config import set_default_profile_name
-from gemiterm.error_handlers import handle_cli_error, require_active_profiles
+from gemiterm.error_handlers import (
+    handle_cli_error,
+    input_with_exit,
+    prompt_with_exit,
+    require_active_profiles,
+)
 from gemiterm.exceptions import (
     AuthenticationError,
     CookieExpiredError,
@@ -142,7 +147,7 @@ def _delete_profile(profile_name: str) -> None:
     if profile_name == default_name:
         console.print("[bold yellow]Cannot delete the default profile.[/bold yellow]")
         return
-    confirm = console.input(f"Delete profile '{profile_name}'? (yes/no): ").strip().lower()
+    confirm = input_with_exit(f"Delete profile '{profile_name}'? (yes/no): ").strip().lower()
     if confirm == "yes":
         delete_profile(profile_name)
         console.print(f"[bold green]Profile '{profile_name}' deleted.[/bold green]")
@@ -161,7 +166,7 @@ def _rename_profile_from_id(profile_name: str, new_name: str | None = None) -> N
         return
     old_name = statuses[profile_id - 1]["name"]
     if not new_name:
-        new_name = click.prompt("Enter new profile name")
+        new_name = prompt_with_exit("Enter new profile name")
     rename_profile(old_name, new_name)
     console.print(f"[bold green]Profile renamed from '{old_name}' to '{new_name}'.[/bold green]")
 
@@ -205,30 +210,26 @@ def auth() -> None:
     console.print("  [R] Rename profile")
     console.print("  [X] Exit and continue with current default")
 
-    try:
-        choice = console.input("\nEnter choice (A/D/S/R/X): ").strip().upper()
-    except KeyboardInterrupt:
-        console.print("\n[bold yellow]Exiting auth menu...[/bold yellow]")
-        return
+    choice = input_with_exit("\nEnter choice (A/D/S/R/X): ").strip().upper()
 
     if choice == "A":
-        new_name = click.prompt("Enter new profile name")
+        new_name = prompt_with_exit("Enter new profile name")
         _add_profile(new_name)
     elif choice == "D":
-        name_to_delete = click.prompt("Enter profile name to delete")
+        name_to_delete = prompt_with_exit("Enter profile name to delete")
         _delete_profile(name_to_delete)
     elif choice == "S":
-        name_to_set = click.prompt("Enter profile name to set as default")
+        name_to_set = prompt_with_exit("Enter profile name to set as default")
         _set_default(name_to_set)
     elif choice == "R":
         statuses = list_profile_statuses()
         console.print(_render_profiles_table(statuses, show_ids=True))
-        profile_id = click.prompt("Enter profile ID to rename", type=int)
+        profile_id = prompt_with_exit("Enter profile ID to rename", type=int)
         if profile_id < 1 or profile_id > len(statuses):
             console.print("[bold red]Invalid profile ID.[/bold red]")
             return
         old_name = statuses[profile_id - 1]["name"]
-        new_name = click.prompt("Enter new profile name")
+        new_name = prompt_with_exit("Enter new profile name")
         rename_profile(old_name, new_name)
         console.print(
             f"[bold green]Profile renamed from '{old_name}' to '{new_name}'.[/bold green]"
@@ -247,19 +248,19 @@ def auth() -> None:
 def profile(action: str, profile_name: str | None, new_name: str | None) -> None:
     if action == "add":
         if not profile_name:
-            profile_name = click.prompt("Enter new profile name")
+            profile_name = prompt_with_exit("Enter new profile name")
         _add_profile(profile_name)
     elif action == "delete":
         if not profile_name:
-            profile_name = click.prompt("Enter profile name to delete")
+            profile_name = prompt_with_exit("Enter profile name to delete")
         _delete_profile(profile_name)
     elif action == "rename":
         if not profile_name:
-            profile_name = click.prompt("Enter profile ID to rename")
+            profile_name = prompt_with_exit("Enter profile ID to rename")
         _rename_profile_from_id(profile_name, new_name)
     elif action == "default":
         if not profile_name:
-            profile_name = click.prompt("Enter profile name to set as default")
+            profile_name = prompt_with_exit("Enter profile name to set as default")
         _set_default(profile_name)
     elif action == "list":
         statuses = list_profile_statuses()
@@ -532,7 +533,7 @@ def continue_chat_interactive(
 
     while True:
         try:
-            user_input = console.input("[bold green]>[/bold green] ")
+            user_input = input_with_exit("[bold green]>[/bold green] ")
 
             if user_input.strip().lower() == "/exit":
                 console.print("[bold cyan]Ending chat session...[/bold cyan]")
@@ -557,7 +558,6 @@ def continue_chat_interactive(
                 console.print(f"[bold red]API error:[/bold red] {e}")
                 console.print("[dim]Try sending another message or /exit to quit.[/dim]")
                 console.print()
-
         except KeyboardInterrupt:
             console.print("\n[bold yellow]Session ended by user.[/bold yellow]")
             break

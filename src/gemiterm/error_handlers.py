@@ -1,5 +1,6 @@
 import sys
 
+import click
 from rich.console import Console
 
 from gemiterm.exceptions import (
@@ -34,3 +35,28 @@ def require_active_profiles(statuses: list[dict]) -> list[str]:
         console.print("[yellow]Run 'gemiterm auth' to authenticate.[/yellow]")
         sys.exit(2)
     return active
+
+
+def prompt_with_exit(prompt_text: str, **kwargs) -> str | None:
+    """Wrap click.prompt to handle Ctrl+C gracefully.
+
+    On KeyboardInterrupt, prints a message and exits with code 0.
+    """
+    try:
+        return click.prompt(prompt_text, **kwargs)
+    except KeyboardInterrupt:
+        console.print("\n[bold yellow]Operation cancelled.[/bold yellow]")
+        sys.exit(0)
+
+
+def input_with_exit(prompt_text: str) -> str | None:
+    """Wrap console.input to handle Ctrl+C gracefully.
+
+    On KeyboardInterrupt or EOFError, prints a message and exits with code 0.
+    Returns None if cancelled.
+    """
+    try:
+        return console.input(prompt_text)
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[bold yellow]Operation cancelled.[/bold yellow]")
+        sys.exit(0)

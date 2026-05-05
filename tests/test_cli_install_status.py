@@ -8,7 +8,14 @@ from gemiterm.cli import cli
 
 class TestRootCliGroup:
     """Tests for the root cli group."""
-   
+
+    def test_version_flag(self):
+        """Test that --version shows the version."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--version"])
+        assert result.exit_code == 0
+        assert "1.3.0" in result.output
+
     def test_help_flag(self):
         """Test that --help shows help."""
         runner = CliRunner()
