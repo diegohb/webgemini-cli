@@ -12,9 +12,12 @@ def setup_logging(verbose: bool = False) -> None:
         force=True,
     )
 
-    from gemini_webapi import set_log_level
+    try:
+        from gemini_webapi import set_log_level
 
-    set_log_level("DEBUG" if verbose else "WARNING")
+        set_log_level("DEBUG" if verbose else "WARNING")
+    except Exception:
+        pass
 
 
 def get_logger(name: str) -> logging.Logger:

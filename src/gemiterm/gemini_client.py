@@ -75,6 +75,15 @@ class GeminiClient:
             )
         return messages
 
+    def delete_chat(self, conversation_id: str) -> None:
+        try:
+            client = self._ensure_client()
+            loop = self._get_loop()
+            loop.run_until_complete(client.delete_chat(conversation_id))
+        except Exception as e:
+            logger.debug(f"delete_chat failed: {e}")
+            raise GeminiAPIError(f"Failed to delete chat: {e}")
+
     def continue_chat(self, conversation_id: str, message: str) -> str:
         try:
             client = self._ensure_client()

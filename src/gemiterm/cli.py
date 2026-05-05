@@ -416,7 +416,7 @@ def list(
 
 
 @cli.command()
-@click.argument("conversation_id")
+@click.argument("conversation_id", required=False)
 @click.option(
     "--format", "-f", "output_format", default="text", type=click.Choice(["text", "json"])
 )
@@ -428,7 +428,21 @@ def list(
     default=None,
     help="File path to save fetched content (default: print to console)",
 )
-def fetch(conversation_id: str, output_format: str, output_path: Path | None) -> None:
+@click.pass_context
+def fetch(
+    ctx: click.Context,
+    conversation_id: str | None,
+    output_format: str,
+    output_path: Path | None,
+) -> None:
+    if conversation_id is None:
+        ctx.invoke(
+            cli.commands["list"],
+            output_format=output_format,
+            output_path=output_path,
+        )
+        return
+
     validate_conversation_id(conversation_id)
 
     active_profiles = require_active_profiles(list_profile_statuses())
@@ -481,9 +495,14 @@ def fetch(conversation_id: str, output_format: str, output_path: Path | None) ->
 
 
 @cli.command(name="continue")
-@click.argument("conversation_id")
+@click.argument("conversation_id", required=False)
 @click.argument("message", required=False)
-def continue_chat(conversation_id: str, message: str | None) -> None:
+@click.pass_context
+def continue_chat(ctx: click.Context, conversation_id: str | None, message: str | None) -> None:
+    if conversation_id is None:
+        ctx.invoke(cli.commands["list"])
+        return
+
     validate_conversation_id(conversation_id)
 
     active_profiles = require_active_profiles(list_profile_statuses())
@@ -567,6 +586,39 @@ def continue_chat_interactive(
         except EOFError:
             console.print("\n[bold yellow]Session ended.[/bold yellow]")
             break
+
+
+@cli.command()
+@click.argument("conversation_id")
+@click.option("--force", is_flag=True, help="Skip confirmation prompt")
+def delete(conversation_id: str, force: bool) -> None:
+    validate_conversation_id(conversation_id)
+
+    if not force:
+        confirm = input_with_exit(f"Delete conversation '{conversation_id}'? (yes/no): ")
+        if confirm.strip().lower() != "yes":
+            console.print("[yellow]Cancelled.[/yellow]")
+            return
+
+    active_profiles = require_active_profiles(list_profile_statuses())
+
+    secure_1psid, secure_1psidts = _find_client_for_conversation(
+        conversation_id, active_profiles
+    )
+
+    if secure_1psid is None:
+        console.print("[bold red]Conversation not found in any active profile.[/bold red]")
+        console.print(
+            "[bold yellow]Run 'gemiterm list' to see available conversations.[/bold yellow]"
+        )
+        sys.exit(1)
+
+    try:
+        client = GeminiClient(secure_1psid, secure_1psidts)
+        client.delete_chat(conversation_id)
+        console.print(f"[bold green]Deleted conversation {conversation_id}.[/bold green]")
+    except (CookieExpiredError, AuthenticationError, GeminiAPIError) as e:
+        handle_cli_error(e)
 
 
 @cli.command()
