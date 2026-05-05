@@ -160,22 +160,10 @@ class TestList:
                 assert "API error" in result.output
 
 
-_ACTIVE_PROFILES = [
-    {
-        "name": "default",
-        "is_active": True,
-        "exists": True,
-        "expires_at": None,
-        "needs_refresh": False,
-        "is_default": True,
-    },
-]
-
-
 class TestFetch:
-    def test_fetch_text_output(self):
+    def test_fetch_text_output(self, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
@@ -194,9 +182,9 @@ class TestFetch:
             assert "MODEL" in result.output
             assert "Hi there" in result.output
 
-    def test_fetch_json_format(self):
+    def test_fetch_json_format(self, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
@@ -212,10 +200,10 @@ class TestFetch:
             assert '"role"' in result.output
             assert '"content"' in result.output
 
-    def test_fetch_path_writes_file(self, tmp_path):
+    def test_fetch_path_writes_file(self, tmp_path, active_profiles):
         output_file = tmp_path / "output.txt"
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
@@ -239,9 +227,9 @@ class TestFetch:
         assert result.exit_code == 1
         assert "cannot be empty" in result.output
 
-    def test_fetch_conversation_not_found(self):
+    def test_fetch_conversation_not_found(self, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
@@ -263,9 +251,9 @@ class TestFetch:
             assert result.exit_code == 2
             assert "No active profiles found" in result.output
 
-    def test_fetch_api_error(self):
+    def test_fetch_api_error(self, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
