@@ -4,22 +4,11 @@ from click.testing import CliRunner
 
 from gemiterm.cli import cli
 
-_ACTIVE_PROFILES = [
-    {
-        "name": "default",
-        "is_active": True,
-        "exists": True,
-        "expires_at": None,
-        "needs_refresh": False,
-        "is_default": True,
-    },
-]
-
 
 class TestContinue:
-    def test_continue_with_message_calls_single(self):
+    def test_continue_with_message_calls_single(self, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
@@ -33,9 +22,9 @@ class TestContinue:
             assert "Response:" in result.output
             mock_client.continue_chat.assert_called_with("cid123", "Hello AI")
 
-    def test_continue_with_no_message_starts_interactive(self):
+    def test_continue_with_no_message_starts_interactive(self, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
@@ -48,9 +37,9 @@ class TestContinue:
             assert "Interactive chat session started" in result.output
             assert "Type your message" in result.output
 
-    def test_continue_conversation_not_found(self):
+    def test_continue_conversation_not_found(self, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
@@ -72,9 +61,9 @@ class TestContinue:
             assert result.exit_code == 2
             assert "No active profiles found" in result.output
 
-    def test_continue_api_error(self):
+    def test_continue_api_error(self, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
@@ -91,9 +80,9 @@ class TestContinue:
 
 
 class TestExport:
-    def test_export_auto_filename_in_cwd(self, tmp_path):
+    def test_export_auto_filename_in_cwd(self, tmp_path, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
             patch("gemiterm.cli.Path.cwd", return_value=tmp_path),
@@ -112,10 +101,10 @@ class TestExport:
             files = list(tmp_path.glob("gemini-chat-cid123-*.md"))
             assert len(files) == 1
 
-    def test_export_with_output_dir(self, tmp_path):
+    def test_export_with_output_dir(self, tmp_path, active_profiles):
         output_file = tmp_path / "exported_chat.md"
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
@@ -131,9 +120,9 @@ class TestExport:
             assert "Exported to" in result.output
             assert output_file.exists()
 
-    def test_export_json_format(self, tmp_path):
+    def test_export_json_format(self, tmp_path, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
             patch("gemiterm.cli.Path.cwd", return_value=tmp_path),
@@ -153,9 +142,9 @@ class TestExport:
             assert '"conversation_id"' in content
             assert '"messages"' in content
 
-    def test_export_markdown_format(self, tmp_path):
+    def test_export_markdown_format(self, tmp_path, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
             patch("gemiterm.cli.Path.cwd", return_value=tmp_path),
@@ -172,9 +161,9 @@ class TestExport:
             files = list(tmp_path.glob("gemini-chat-cid123-*.md"))
             assert len(files) == 1
 
-    def test_export_include_metadata(self, tmp_path):
+    def test_export_include_metadata(self, tmp_path, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
             patch("gemiterm.cli.Path.cwd", return_value=tmp_path),
@@ -194,9 +183,9 @@ class TestExport:
             assert "---" in content
             assert "title:" in content
 
-    def test_export_conversation_not_found(self):
+    def test_export_conversation_not_found(self, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
@@ -218,9 +207,9 @@ class TestExport:
             assert result.exit_code == 2
             assert "No active profiles found" in result.output
 
-    def test_export_file_io_error(self, tmp_path):
+    def test_export_file_io_error(self, tmp_path, active_profiles):
         with (
-            patch("gemiterm.cli.list_profile_statuses", return_value=_ACTIVE_PROFILES),
+            patch("gemiterm.cli.list_profile_statuses", return_value=active_profiles),
             patch("gemiterm.cli.load_cookies") as mock_cookies,
             patch("gemiterm.cli.GeminiClient") as mock_client_class,
         ):
