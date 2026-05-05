@@ -93,6 +93,7 @@ def load_cookies(profile_name: str | None = None) -> tuple[str, str | None]:
         raise AuthenticationError("Missing required cookie __Secure-1PSID")
     return (secure_1psid, secure_1psidts)
 
+
 def get_profile_status(profile_name: str) -> dict:
     profile_path = get_profile_path(profile_name)
     if not profile_path.exists():
