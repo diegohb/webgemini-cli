@@ -82,8 +82,24 @@ class GeminiClient:
             if conversation_id in self._chat_sessions:
                 chat = self._chat_sessions[conversation_id]
             else:
-                metadata = {"cid": conversation_id}
-                chat = client.start_chat(metadata=metadata)
+                latest = loop.run_until_complete(
+                    client.fetch_latest_chat_response(conversation_id)
+                )
+                rid = ""
+                rcid = ""
+                meta = None
+                if latest and latest.metadata:
+                    meta = list(latest.metadata)
+                    logger.debug(f"fetch_latest metadata: {meta}")
+                    if len(meta) > 1 and meta[1]:
+                        rid = meta[1]
+                if hasattr(latest, 'rcid') and latest.rcid:
+                    rcid = latest.rcid
+                if latest and latest.metadata:
+                    chat = client.start_chat(metadata=meta, cid=conversation_id, rid=rid, rcid=rcid)
+                else:
+                    chat = client.start_chat(cid=conversation_id)
+                logger.debug(f"Chat session metadata after creation: {chat.metadata}")
                 self._chat_sessions[conversation_id] = chat
             response = loop.run_until_complete(chat.send_message(message))
             return response.text
