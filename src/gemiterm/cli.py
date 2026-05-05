@@ -495,9 +495,14 @@ def fetch(
 
 
 @cli.command(name="continue")
-@click.argument("conversation_id")
+@click.argument("conversation_id", required=False)
 @click.argument("message", required=False)
-def continue_chat(conversation_id: str, message: str | None) -> None:
+@click.pass_context
+def continue_chat(ctx: click.Context, conversation_id: str | None, message: str | None) -> None:
+    if conversation_id is None:
+        ctx.invoke(cli.commands["list"])
+        return
+
     validate_conversation_id(conversation_id)
 
     active_profiles = require_active_profiles(list_profile_statuses())

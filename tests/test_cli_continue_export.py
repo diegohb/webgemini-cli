@@ -60,6 +60,22 @@ class TestContinue:
             assert result.exit_code == 1
             assert "not found" in result.output.lower()
 
+    def test_continue_no_args_redirects_to_list(self):
+        with (
+            patch("gemiterm.cli.load_cookies") as mock_cookies,
+            patch("gemiterm.cli.GeminiClient") as mock_client_class,
+        ):
+            mock_cookies.return_value = ("sid123", "ts123")
+            mock_client = MagicMock()
+            mock_client.list_chats.return_value = [
+                {"id": "c1", "title": "Chat 1", "is_pinned": False, "timestamp": 1700000000},
+            ]
+            mock_client_class.return_value = mock_client
+            runner = CliRunner()
+            result = runner.invoke(cli, ["continue"])
+            assert result.exit_code == 0
+            assert "Chat 1" in result.output
+
     def test_continue_no_active_profiles(self):
         with patch("gemiterm.cli.list_profile_statuses", return_value=[]):
             runner = CliRunner()
