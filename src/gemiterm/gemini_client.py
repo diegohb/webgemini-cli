@@ -82,9 +82,7 @@ class GeminiClient:
             if conversation_id in self._chat_sessions:
                 chat = self._chat_sessions[conversation_id]
             else:
-                latest = loop.run_until_complete(
-                    client.fetch_latest_chat_response(conversation_id)
-                )
+                latest = loop.run_until_complete(client.fetch_latest_chat_response(conversation_id))
                 rid = ""
                 rcid = ""
                 meta = None
@@ -93,7 +91,7 @@ class GeminiClient:
                     logger.debug(f"fetch_latest metadata: {meta}")
                     if len(meta) > 1 and meta[1]:
                         rid = meta[1]
-                if hasattr(latest, 'rcid') and latest.rcid:
+                if hasattr(latest, "rcid") and latest.rcid:
                     rcid = latest.rcid
                 if latest and latest.metadata:
                     chat = client.start_chat(metadata=meta, cid=conversation_id, rid=rid, rcid=rcid)
