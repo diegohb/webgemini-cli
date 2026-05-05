@@ -590,6 +590,39 @@ def continue_chat_interactive(
 
 @cli.command()
 @click.argument("conversation_id")
+@click.option("--force", is_flag=True, help="Skip confirmation prompt")
+def delete(conversation_id: str, force: bool) -> None:
+    validate_conversation_id(conversation_id)
+
+    if not force:
+        confirm = input_with_exit(f"Delete conversation '{conversation_id}'? (yes/no): ")
+        if confirm.strip().lower() != "yes":
+            console.print("[yellow]Cancelled.[/yellow]")
+            return
+
+    active_profiles = require_active_profiles(list_profile_statuses())
+
+    secure_1psid, secure_1psidts = _find_client_for_conversation(
+        conversation_id, active_profiles
+    )
+
+    if secure_1psid is None:
+        console.print("[bold red]Conversation not found in any active profile.[/bold red]")
+        console.print(
+            "[bold yellow]Run 'gemiterm list' to see available conversations.[/bold yellow]"
+        )
+        sys.exit(1)
+
+    try:
+        client = GeminiClient(secure_1psid, secure_1psidts)
+        client.delete_chat(conversation_id)
+        console.print(f"[bold green]Deleted conversation {conversation_id}.[/bold green]")
+    except (CookieExpiredError, AuthenticationError, GeminiAPIError) as e:
+        handle_cli_error(e)
+
+
+@cli.command()
+@click.argument("conversation_id")
 @click.option("-o", "--output", "output_path", type=click.Path(), help="Custom output file path")
 @click.option(
     "--format",
