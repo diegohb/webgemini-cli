@@ -669,7 +669,11 @@ def export(
     else:
         output_path = Path(output_path)
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        console.print(f"[bold red]Failed to create directory:[/bold red] {e}")
+        sys.exit(1)
 
     if output_format == "markdown":
         title = f"Conversation: {conversation_id}"
