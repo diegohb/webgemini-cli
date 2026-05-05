@@ -1,7 +1,5 @@
 import json
-import sys
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from playwright.async_api import async_playwright
 

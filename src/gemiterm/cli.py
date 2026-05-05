@@ -307,7 +307,7 @@ def continue_chat_interactive(
         console.print(f"[bold red]Failed to initialize client:[/bold red] {e}")
         sys.exit(1)
 
-    console.print(f"[bold cyan]Interactive chat session started.[/bold cyan]")
+    console.print("[bold cyan]Interactive chat session started.[/bold cyan]")
     console.print("[dim]Type your message and press Enter to send.[/dim]")
     console.print("[dim]Type /exit or press Ctrl+C to end the session.[/dim]")
     console.print()
@@ -633,7 +633,7 @@ def install_browser() -> None:
         cmd = [sys.executable, "-m", "playwright", "install", "chromium"]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            console.print(f"[bold red]Failed to install Chromium:[/bold red]")
+            console.print("[bold red]Failed to install Chromium:[/bold red]")
             console.print(result.stderr)
             raise click.ClickException("Chromium installation failed")
         console.print("[bold green]Chromium installed successfully.[/bold green]")
