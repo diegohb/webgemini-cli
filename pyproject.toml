@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gemiterm"
-version = "1.2.1"
+version = "1.2.2"
 description = "A Python CLI tool that bridges Playwright-based Google authentication with the gemini-webapi library"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,7 +23,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "gemini-webapi>=1.21.0",
+    "gemini-webapi>=2.0.0",
     "playwright",
     "click",
     "rich",

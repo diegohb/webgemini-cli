@@ -60,6 +60,17 @@ def auth() -> None:
 @click.option("-s", "--search", default=None, help="Search chat titles")
 @click.option("--after", default=None, help="Show chats after ISO date (e.g., 2024-01-01)")
 @click.option("--before", default=None, help="Show chats before ISO date (e.g., 2024-01-01)")
+@click.option(
+    "--format", "-f", "output_format", default="text", type=click.Choice(["text", "json"])
+)
+@click.option(
+    "--path",
+    "-p",
+    "output_path",
+    type=click.Path(),
+    default=None,
+    help="File path to save list output (default: print to console)",
+)
 def list(
     limit: int,
     offset: int,
@@ -68,6 +79,8 @@ def list(
     search: str | None,
     after: str | None,
     before: str | None,
+    output_format: str,
+    output_path: Path | None,
 ) -> None:
     if limit < 1:
         limit = 1
@@ -99,7 +112,10 @@ def list(
         sys.exit(1)
 
     if not chats:
-        console.print("[yellow]No chats found.[/yellow]")
+        if output_format == "json":
+            console.print("[]")
+        else:
+            console.print("[yellow]No chats found.[/yellow]")
         return
 
     effective_limit = 50 if fetch_all else limit
@@ -144,22 +160,46 @@ def list(
     paginated_chats = chats[offset : offset + effective_limit]
 
     if not paginated_chats:
-        console.print("[yellow]No chats found matching criteria.[/yellow]")
+        if output_format == "json":
+            console.print("[]")
+        else:
+            console.print("[yellow]No chats found matching criteria.[/yellow]")
         return
 
-    table = Table(title="Gemini Chats")
-    table.add_column("ID", style="cyan")
-    table.add_column("Title", style="green")
-    table.add_column("Pinned", style="yellow")
-    table.add_column("Last Updated", style="blue")
+    if output_path:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    for chat in paginated_chats:
-        pin_marker = "*" if chat.get("is_pinned") else ""
-        ts = chat.get("timestamp")
-        date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M") if ts else "N/A"
-        table.add_row(chat["id"], chat["title"], pin_marker, date_str)
+        if output_format == "json":
+            content = json.dumps(paginated_chats, indent=2)
+        else:
+            lines = []
+            for chat in paginated_chats:
+                pin_marker = "*" if chat.get("is_pinned") else ""
+                ts = chat.get("timestamp")
+                date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M") if ts else "N/A"
+                lines.append(f"{chat['id']}\t{chat['title']}\t{pin_marker}\t{date_str}")
+            content = "\n".join(lines)
 
-    console.print(table)
+        output_path.write_text(content)
+        console.print(f"[bold green]Saved to {output_path}[/bold green]")
+    else:
+        if output_format == "json":
+            console.print(json.dumps(paginated_chats, indent=2))
+        else:
+            table = Table(title="Gemini Chats")
+            table.add_column("ID", style="cyan")
+            table.add_column("Title", style="green")
+            table.add_column("Pinned", style="yellow")
+            table.add_column("Last Updated", style="blue")
+
+            for chat in paginated_chats:
+                pin_marker = "*" if chat.get("is_pinned") else ""
+                ts = chat.get("timestamp")
+                date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M") if ts else "N/A"
+                table.add_row(chat["id"], chat["title"], pin_marker, date_str)
+
+            console.print(table)
 
 
 @cli.command()
@@ -307,7 +347,7 @@ def continue_chat_interactive(
         console.print(f"[bold red]Failed to initialize client:[/bold red] {e}")
         sys.exit(1)
 
-    console.print(f"[bold cyan]Interactive chat session started.[/bold cyan]")
+    console.print("[bold cyan]Interactive chat session started.[/bold cyan]")
     console.print("[dim]Type your message and press Enter to send.[/dim]")
     console.print("[dim]Type /exit or press Ctrl+C to end the session.[/dim]")
     console.print()
@@ -633,7 +673,7 @@ def install_browser() -> None:
         cmd = [sys.executable, "-m", "playwright", "install", "chromium"]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            console.print(f"[bold red]Failed to install Chromium:[/bold red]")
+            console.print("[bold red]Failed to install Chromium:[/bold red]")
             console.print(result.stderr)
             raise click.ClickException("Chromium installation failed")
         console.print("[bold green]Chromium installed successfully.[/bold green]")
