@@ -1,6 +1,13 @@
 import json
 import shutil
 from datetime import datetime, timedelta
+import os
+import sys
+from pathlib import Path
+
+if getattr(sys, "frozen", False):
+    playwright_cache = Path.home() / ".cache" / "ms-playwright"
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(playwright_cache)
 
 from playwright.async_api import async_playwright
 
