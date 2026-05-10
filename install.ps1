@@ -55,6 +55,15 @@ Invoke-WebRequest $exeAsset.browser_download_url -OutFile $exePath
 Write-Host "Installing Chromium browser for Playwright..."
 & $exePath install-browser
 
+$chromiumPaths = Get-ChildItem "$env:LOCALAPPDATA\ms-playwright\chromium-*" -ErrorAction SilentlyContinue
+$chromeExe = $chromiumPaths | Get-ChildItem -Filter "chrome.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($chromeExe) {
+    Write-Host "Chromium verified at $($chromeExe.FullName)"
+} else {
+    Write-Host "ERROR: Chromium installation verification failed"
+    exit 1
+}
+
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 if ($userPath -notlike "*$exeDir*") {
     [Environment]::SetEnvironmentVariable('Path', "$userPath;$exeDir", 'User')

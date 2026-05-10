@@ -1,4 +1,5 @@
 """Tests for install-browser, status commands and root cli group."""
+import os
 from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
@@ -112,6 +113,24 @@ class TestInstallBrowser:
                         mock_download.side_effect = RuntimeError("Failed to download Chromium from all sources")
                         result = runner.invoke(cli, ["install-browser"])
                         assert result.exit_code != 0
+
+    def test_install_browser_frozen_no_global_env_modification(self):
+        """Test install-browser doesn't pollute os.environ with PLAYWRIGHT_BROWSERS_PATH."""
+        runner = CliRunner()
+        original_env = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+        with patch("sys.frozen", True, create=True):
+            with patch("shutil.which") as mock_which:
+                mock_which.return_value = None
+
+            with patch("subprocess.run") as mock_run:
+                mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="failed")
+
+                with patch("gemiterm.cli._check_existing_browser", return_value=False):
+                    with patch("gemiterm.cli._download_chromium_fallback") as mock_download:
+                        result = runner.invoke(cli, ["install-browser"])
+
+        after_env = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+        assert original_env == after_env, "PLAYWRIGHT_BROWSERS_PATH should not be in os.environ"
 
 
 class TestStatus:

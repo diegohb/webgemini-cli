@@ -855,8 +855,12 @@ def install_browser() -> None:
                 and "Python" in result.stdout
                 and "not found" not in result.stdout.lower()
             ):
+                playwright_cache = Path.home() / ".cache" / "ms-playwright"
+                env = os.environ.copy()
+                env["PLAYWRIGHT_BROWSERS_PATH"] = str(playwright_cache)
+
                 cmd = [py_cmd, "-3", "-m", "playwright", "install", "chromium"]
-                result = subprocess.run(cmd, capture_output=True, text=True)
+                result = subprocess.run(cmd, capture_output=True, text=True, env=env)
                 if result.returncode == 0:
                     console.print("[bold green]Chromium installed successfully.[/bold green]")
                     return
@@ -864,12 +868,16 @@ def install_browser() -> None:
                     f"[yellow]py -3 method failed: {result.stderr or result.stdout}[/yellow]"
                 )
 
+        playwright_cache = Path.home() / ".cache" / "ms-playwright"
+        env = os.environ.copy()
+        env["PLAYWRIGHT_BROWSERS_PATH"] = str(playwright_cache)
+
         python_exe = shutil.which("python") or shutil.which("python3")
         if python_exe:
             result = subprocess.run([python_exe, "--version"], capture_output=True, text=True)
             if result.returncode == 0:
                 cmd = [python_exe, "-m", "playwright", "install", "chromium"]
-                result = subprocess.run(cmd, capture_output=True, text=True)
+                result = subprocess.run(cmd, capture_output=True, text=True, env=env)
                 if result.returncode == 0:
                     console.print("[bold green]Chromium installed successfully.[/bold green]")
                     return
@@ -881,8 +889,11 @@ def install_browser() -> None:
         _download_chromium_fallback()
         console.print("[bold green]Chromium installed successfully.[/bold green]")
     else:
+        playwright_cache = Path.home() / ".cache" / "ms-playwright"
+        env = os.environ.copy()
+        env["PLAYWRIGHT_BROWSERS_PATH"] = str(playwright_cache)
         cmd = [sys.executable, "-m", "playwright", "install", "chromium"]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
         if result.returncode != 0:
             console.print("[bold red]Failed to install Chromium:[/bold red]")
             console.print(result.stderr)
