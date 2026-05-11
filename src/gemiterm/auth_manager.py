@@ -1,13 +1,6 @@
 import json
 import shutil
 from datetime import datetime, timedelta
-import os
-import sys
-from pathlib import Path
-
-if getattr(sys, "frozen", False):
-    playwright_cache = Path.home() / ".cache" / "ms-playwright"
-    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(playwright_cache)
 
 from playwright.async_api import async_playwright
 
@@ -22,6 +15,29 @@ from gemiterm.exceptions import AuthenticationError, CookieExpiredError
 
 REQUIRED_COOKIES = {"__Secure-1PSID", "__Secure-1PSIDTS"}
 COOKIE_EXPIRY_THRESHOLD_DAYS = 7
+
+
+def _find_chromium_executable() -> str | None:
+    """Find chromium executable in standard playwright cache locations."""
+    import os
+    from pathlib import Path
+
+    playwright_cache_locations = [
+        Path(os.environ.get("LOCALAPPDATA", "")) / "ms-playwright",
+        Path.home() / ".cache" / "ms-playwright",
+    ]
+
+    for cache_dir in playwright_cache_locations:
+        if not cache_dir.exists():
+            continue
+        for chromium_dir in cache_dir.iterdir():
+            if not chromium_dir.name.startswith("chromium-"):
+                continue
+            chrome_exe = chromium_dir / "chrome-win" / "chrome.exe"
+            if chrome_exe.exists():
+                return str(chrome_exe)
+
+    return None
 
 
 def validate_cookies(cookies: dict) -> bool:
@@ -53,8 +69,13 @@ async def login(profile_name: str | None = None) -> list[dict]:
     ensure_config_dir()
     profile_path = get_profile_path(profile_name)
     profile_path.parent.mkdir(parents=True, exist_ok=True)
+
+    chromium_executable = _find_chromium_executable()
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(
+            headless=False,
+            executable_path=chromium_executable if chromium_executable else None
+        )
         context = await browser.new_context()
         page = await context.new_page()
 
