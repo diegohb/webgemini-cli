@@ -31,8 +31,6 @@ jobs:
       - name: Install deps
         run: |
           pip install -e ".[dev]"
-          playwright install chromium
-          playwright install-deps
       - name: Run tests
         run: pytest -v
 
