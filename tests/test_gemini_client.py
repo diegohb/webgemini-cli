@@ -249,12 +249,12 @@ class TestGeminiClientFetchChat:
         assert result[1]["role"] == "model"
         assert result[1]["content"] == "Hi there"
 
-    def test_fetch_chat_returns_empty_when_history_none(self, mock_webapi_client):
-        """fetch_chat should return [] when read_chat returns None."""
+    def test_fetch_chat_returns_none_when_history_none(self, mock_webapi_client):
+        """fetch_chat should return None when read_chat returns None."""
         loop_mock = MagicMock()
         client = self._create_client_with_mock_loop(mock_webapi_client, loop_mock)
         mock_webapi_client.read_chat.return_value = None
 
         result = client.fetch_chat("c_abc")
 
-        assert result == []
+        assert result is None

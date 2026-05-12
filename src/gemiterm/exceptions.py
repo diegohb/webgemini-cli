@@ -16,3 +16,7 @@ class GeminiAPIError(GemitermError):
 
 class ConversationNotFoundError(GemitermError):
     pass
+
+
+class ConversationPendingError(GemitermError):
+    pass

@@ -49,13 +49,13 @@ class GeminiClient:
             logger.debug(f"list_chats failed: {e}")
             raise GeminiAPIError(f"Failed to list chats: {e}")
 
-    def fetch_chat(self, conversation_id: str) -> list[dict[str, Any]]:
+    def fetch_chat(self, conversation_id: str) -> list[dict[str, Any]] | None:
         try:
             client = self._ensure_client()
             loop = self._get_loop()
             history = loop.run_until_complete(client.read_chat(conversation_id))
             if history is None:
-                return []
+                return None
             return self._parse_chat_history(history, conversation_id)
         except Exception as e:
             logger.debug(f"fetch_chat failed: {e}")

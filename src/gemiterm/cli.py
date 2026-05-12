@@ -104,6 +104,10 @@ def _find_conversation_in_profiles(
             secure_1psid, secure_1psidts = load_cookies(pname)
             client = GeminiClient(secure_1psid, secure_1psidts)
             messages = client.fetch_chat(conversation_id)
+            if messages is None:
+                raise ConversationNotFoundError(
+                    f"Conversation {conversation_id} not found in profile {pname}"
+                )
             break
         except ConversationNotFoundError:
             continue
@@ -122,7 +126,11 @@ def _find_client_for_conversation(
         try:
             pname_1psid, pname_1psidts = load_cookies(pname)
             client = GeminiClient(pname_1psid, pname_1psidts)
-            client.fetch_chat(conversation_id)
+            messages = client.fetch_chat(conversation_id)
+            if messages is None:
+                raise ConversationNotFoundError(
+                    f"Conversation {conversation_id} not found in profile {pname}"
+                )
             secure_1psid, secure_1psidts = pname_1psid, pname_1psidts
             break
         except (
@@ -602,9 +610,7 @@ def delete(conversation_id: str, force: bool) -> None:
 
     active_profiles = require_active_profiles(list_profile_statuses())
 
-    secure_1psid, secure_1psidts = _find_client_for_conversation(
-        conversation_id, active_profiles
-    )
+    secure_1psid, secure_1psidts = _find_client_for_conversation(conversation_id, active_profiles)
 
     if secure_1psid is None:
         console.print("[bold red]Conversation not found in any active profile.[/bold red]")

@@ -73,8 +73,7 @@ async def login(profile_name: str | None = None) -> list[dict]:
     chromium_executable = _find_chromium_executable()
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False,
-            executable_path=chromium_executable if chromium_executable else None
+            headless=False, executable_path=chromium_executable if chromium_executable else None
         )
         context = await browser.new_context()
         page = await context.new_page()
